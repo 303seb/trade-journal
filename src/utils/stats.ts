@@ -22,6 +22,10 @@ export function getMonthTrades(trades: DashTrade[], year: number, month: number)
   })
 }
 
+export function getYearTrades(trades: DashTrade[], year: number): DashTrade[] {
+  return trades.filter(t => new Date(t.date + 'T12:00:00').getFullYear() === year)
+}
+
 export function calcNetPnl(trades: DashTrade[]): number {
   return trades.reduce((sum, t) => sum + t.pnl, 0)
 }

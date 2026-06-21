@@ -556,10 +556,8 @@ export function Journal({ entries, confluenceTags, onSave, onAddConfluenceTag, i
         </div>
 
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 48px' }}>
-
-          {/* Centered content column */}
-          <div style={{ maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 48px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
             {/* ── Premarket Analysis ─────────────────────────────── */}
             <CollapsibleSection title="Premarket Analysis">

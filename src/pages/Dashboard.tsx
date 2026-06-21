@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity } from 'lucide-react'
+import { NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity, Calendar } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
 import { MonthCalendar } from '../components/MonthCalendar'
 import {
   getDashTrades,
   getMonthTrades,
+  getYearTrades,
   calcNetPnl,
   calcWinRate,
   calcProfitFactor,
@@ -42,12 +43,15 @@ export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateT
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
   const allTrades = getDashTrades(journalEntries)
+  const yearTrades = getYearTrades(allTrades, year)
   const monthTrades = getMonthTrades(allTrades, year, month)
+
+  const yearlyPnl = calcNetPnl(yearTrades)
   const netPnl = calcNetPnl(monthTrades)
+  const todayPnl = getDayPnl(allTrades, todayStr)
   const winRate = calcWinRate(monthTrades)
   const profitFactor = calcProfitFactor(monthTrades)
   const avgRR = calcAvgRR(monthTrades)
-  const todayPnl = getDayPnl(allTrades, todayStr)
   const goalAmount = monthlyGoals.find(g => g.month === monthStr)?.amount ?? 0
 
   const prevMonth = () => {
@@ -59,33 +63,13 @@ export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateT
     else setMonth(m => m + 1)
   }
 
-  const monthLabel = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const quote = QUOTES[now.getDay()]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '28px 32px', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '22px 28px 32px' }}>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={prevMonth}
-            style={{ padding: '6px 8px', borderRadius: 10, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#666', cursor: 'pointer', display: 'flex', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f0f0f0'; e.currentTarget.style.borderColor = '#444' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2a2a2a' }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f0f0f0', letterSpacing: '-0.02em' }}>{monthLabel}</h1>
-          <button
-            onClick={nextMonth}
-            style={{ padding: '6px 8px', borderRadius: 10, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#666', cursor: 'pointer', display: 'flex', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f0f0f0'; e.currentTarget.style.borderColor = '#444' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2a2a2a' }}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
+      {/* Action row */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           onClick={() => onNavigateToJournal(todayStr)}
           style={{
@@ -101,12 +85,19 @@ export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateT
         </button>
       </div>
 
-      {/* Stats — 5 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      {/* Stats — 6 cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
         <StatCard
-          label="Total P&L"
+          label="Yearly P&L"
+          value={formatCurrency(yearlyPnl)}
+          sub={`${year} total`}
+          positive={yearTrades.length === 0 ? null : yearlyPnl >= 0}
+          icon={<Calendar size={15} />}
+        />
+        <StatCard
+          label="Net P&L"
           value={formatCurrency(netPnl)}
-          sub={`${monthTrades.length} trade${monthTrades.length !== 1 ? 's' : ''}`}
+          sub={`${monthTrades.length} trade${monthTrades.length !== 1 ? 's' : ''} this month`}
           positive={monthTrades.length === 0 ? null : netPnl >= 0}
           icon={<DollarSign size={15} />}
         />
@@ -148,7 +139,7 @@ export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateT
         <p style={{ fontSize: 14, color: '#aaaaaa', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
           &ldquo;{quote.text}&rdquo;
         </p>
-        <p style={{ fontSize: 12, color: '#444', marginTop: 10, margin: '10px 0 0' }}>— {quote.author}</p>
+        <p style={{ fontSize: 12, color: '#444', margin: '10px 0 0' }}>— {quote.author}</p>
       </div>
 
       {/* Monthly Milestone */}
@@ -159,12 +150,14 @@ export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateT
         onSetGoal={amount => onSetGoal(monthStr, amount)}
       />
 
-      {/* Calendar — clicking a day navigates to journal */}
+      {/* Calendar — month nav lives inside the component */}
       <MonthCalendar
         year={year}
         month={month}
         trades={allTrades}
         onDayClick={date => onNavigateToJournal(date)}
+        onPrevMonth={prevMonth}
+        onNextMonth={nextMonth}
       />
 
     </div>

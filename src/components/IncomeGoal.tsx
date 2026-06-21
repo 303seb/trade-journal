@@ -21,6 +21,14 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
   const remaining = goal - currentPnl
   const isAhead = currentPnl >= goal
 
+  const barColor = progress <= 0
+    ? '#1e1e1e'
+    : progress <= 33
+    ? '#f87171'
+    : progress <= 66
+    ? '#fbbf24'
+    : '#4ade80'
+
   const handleSave = () => {
     const parsed = parseFloat(inputVal.replace(/[^0-9.-]/g, ''))
     if (!isNaN(parsed) && parsed > 0) onSetGoal(parsed)
@@ -33,27 +41,48 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
   })
 
   return (
-    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Target size={16} className="text-[#888]" />
-          <span className="text-sm font-semibold text-[#f0f0f0]">Monthly Milestone</span>
-          <span className="text-xs text-[#555]">— {monthLabel}</span>
+    <div style={{ background: '#141414', border: '1px solid #1f1f1f', borderRadius: 16, padding: '24px 28px' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: '#1a1a1a', border: '1px solid #222',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Target size={17} color="#777" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#f0f0f0', marginBottom: 2 }}>Monthly Milestone</div>
+            <div style={{ fontSize: 11, color: '#444' }}>{monthLabel}</div>
+          </div>
         </div>
+
         {editing ? (
-          <div className="flex items-center gap-2">
-            <span className="text-[#666] text-sm">$</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#555' }}>$</span>
             <input
               type="number"
               value={inputVal}
               onChange={e => setInputVal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
-              className="bg-[#0e0e0e] border border-[#333] rounded-lg px-3 py-1 text-sm text-[#f0f0f0] w-32 focus:border-[#555]"
+              style={{
+                background: '#0e0e0e', border: '1px solid #333', borderRadius: 8,
+                padding: '7px 12px', fontSize: 13, color: '#f0f0f0', width: 130,
+                outline: 'none', fontFamily: 'inherit',
+              }}
               autoFocus
             />
             <button
               onClick={handleSave}
-              className="bg-[#f0f0f0] hover:bg-white text-[#111] rounded-lg p-1.5 transition-colors"
+              style={{
+                background: '#f0f0f0', color: '#111', border: 'none', borderRadius: 8,
+                padding: '8px 11px', cursor: 'pointer', display: 'flex', alignItems: 'center',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#ffffff')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#f0f0f0')}
             >
               <Check size={14} />
             </button>
@@ -61,7 +90,13 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
         ) : (
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1.5 text-xs text-[#666] hover:text-[#f0f0f0] transition-colors"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 12, color: '#555', background: 'none', border: 'none',
+              cursor: 'pointer', transition: 'color 0.15s', fontFamily: 'inherit',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#f0f0f0')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#555')}
           >
             <Edit2 size={13} />
             {goal > 0 ? `Goal: ${formatCurrency(goal)}` : 'Set goal'}
@@ -71,29 +106,42 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
 
       {goal > 0 ? (
         <>
-          <div className="relative h-3 bg-[#1e1e1e] rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                isAhead
-                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-[#444] to-[#666]'
-              }`}
-              style={{ width: `${Math.max(progress, 0)}%` }}
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className={isAhead ? 'text-emerald-400 font-medium' : 'text-[#666]'}>
-              {isAhead
-                ? `+${formatCurrency(currentPnl - goal)} over goal`
-                : `${formatCurrency(remaining)} remaining`}
-            </span>
-            <span className={`font-semibold ${isAhead ? 'text-emerald-400' : 'text-[#999]'}`}>
+          {/* Current vs goal amounts */}
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18 }}>
+            <div>
+              <span style={{
+                fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em',
+                color: isAhead ? '#4ade80' : '#f0f0f0',
+              }}>
+                {formatCurrency(currentPnl)}
+              </span>
+              <span style={{ fontSize: 14, color: '#3a3a3a', marginLeft: 12 }}>
+                of {formatCurrency(goal)}
+              </span>
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 700, color: barColor }}>
               {progress.toFixed(1)}%
             </span>
           </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 10, background: '#1a1a1a', borderRadius: 999, overflow: 'hidden', marginBottom: 16 }}>
+            <div style={{
+              width: `${Math.max(progress, 0)}%`, height: '100%', borderRadius: 999,
+              background: barColor,
+              transition: 'width 0.5s ease, background 0.4s ease',
+            }} />
+          </div>
+
+          {/* Status label */}
+          <div style={{ fontSize: 12, color: isAhead ? '#4ade80' : '#555' }}>
+            {isAhead
+              ? `+${formatCurrency(currentPnl - goal)} over goal`
+              : `${formatCurrency(remaining)} remaining`}
+          </div>
         </>
       ) : (
-        <div className="text-xs text-[#444] text-center py-2">
+        <div style={{ textAlign: 'center', padding: '32px 0', color: '#2a2a2a', fontSize: 13 }}>
           Set a monthly goal to track your progress
         </div>
       )}

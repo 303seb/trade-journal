@@ -23,10 +23,14 @@ function App() {
     journalEntries,
     monthlyGoals,
     confluenceTags,
+    tradingRules,
     upsertJournalEntry,
     setMonthlyGoal,
     addConfluenceTag,
     deleteConfluenceTag,
+    addTradingRule,
+    removeTradingRule,
+    updateTradingRule,
   } = useStore()
 
   const navigateToJournal = (date?: string) => {
@@ -58,9 +62,13 @@ function App() {
             <Journal
               entries={journalEntries}
               confluenceTags={confluenceTags}
+              tradingRules={tradingRules}
               onSave={upsertJournalEntry}
               onAddConfluenceTag={addConfluenceTag}
               onDeleteConfluenceTag={deleteConfluenceTag}
+              onAddTradingRule={addTradingRule}
+              onRemoveTradingRule={removeTradingRule}
+              onUpdateTradingRule={updateTradingRule}
               initialDate={journalDate}
             />
           </div>

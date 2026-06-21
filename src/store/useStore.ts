@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react'
-import type { JournalEntry, MonthlyGoal } from '../types'
+import type { JournalEntry, MonthlyGoal, TradingRule } from '../types'
 
 const KEYS = {
   journal: 'tj_journal',
   goals: 'tj_goals',
   confluences: 'tj_confluences',
+  rules: 'tj_rules',
 }
 
 const DEFAULT_CONFLUENCES = [
-  'VWAP', 'Supply Zone', 'Demand Zone', 'Trend', 'Key Level',
-  'Breakout', 'Opening Range', 'Gap Fill', 'Volume', 'News',
+  'Order Block', 'Fair Value Gap', 'Breaker Block', 'MSS', 'ChoCh',
+  'Liquidity Sweep', 'Displacement', 'OTE', 'Power of 3',
+  'NWOG', 'NDOG', 'Mitigation Block', 'Rejection Block',
 ]
 
 function load<T>(key: string, fallback: T): T {
@@ -42,6 +44,9 @@ export function useStore() {
     }
     return JSON.parse(stored) as string[]
   })
+  const [tradingRules, setTradingRules] = useState<TradingRule[]>(() =>
+    load(KEYS.rules, [])
+  )
 
   const upsertJournalEntry = useCallback((entry: JournalEntry) => {
     setJournalEntries(prev => {
@@ -81,13 +86,41 @@ export function useStore() {
     })
   }, [])
 
+  const addTradingRule = useCallback((text: string) => {
+    setTradingRules(prev => {
+      const next = [...prev, { id: genId(), text }]
+      save(KEYS.rules, next)
+      return next
+    })
+  }, [])
+
+  const removeTradingRule = useCallback((id: string) => {
+    setTradingRules(prev => {
+      const next = prev.filter(r => r.id !== id)
+      save(KEYS.rules, next)
+      return next
+    })
+  }, [])
+
+  const updateTradingRule = useCallback((id: string, text: string) => {
+    setTradingRules(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, text } : r)
+      save(KEYS.rules, next)
+      return next
+    })
+  }, [])
+
   return {
     journalEntries,
     monthlyGoals,
     confluenceTags,
+    tradingRules,
     upsertJournalEntry,
     setMonthlyGoal,
     addConfluenceTag,
     deleteConfluenceTag,
+    addTradingRule,
+    removeTradingRule,
+    updateTradingRule,
   }
 }

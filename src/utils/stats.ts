@@ -2,16 +2,14 @@ import type { JournalEntry, DashTrade } from '../types'
 
 export function getDashTrades(entries: JournalEntry[]): DashTrade[] {
   return entries.flatMap(entry =>
-    entry.trades
-      .filter(t => t.result !== "Didn't take")
-      .map(t => ({
-        id: t.id,
-        date: entry.date,
-        pnl: parseFloat(t.pnl) || 0,
-        result: t.result,
-        symbol: t.symbol || '',
-        side: (t.side || 'Long') as 'Long' | 'Short',
-      }))
+    entry.trades.map(t => ({
+      id: t.id,
+      date: entry.date,
+      pnl: parseFloat(t.pnl) || 0,
+      result: t.result,
+      symbol: t.symbol || '',
+      side: (t.side || 'Long') as 'Long' | 'Short',
+    }))
   )
 }
 

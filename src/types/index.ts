@@ -1,5 +1,6 @@
-// ── Journal types ─────────────────────────────────────────────────────────────
-export type TradeResult = 'Win' | 'Loss' | 'BE' | "Didn't take"
+export type TradeResult = 'Win' | 'Loss' | 'BE' | 'Faded'
+export type AccountType = 'Live' | 'Funded' | 'Eval'
+export type SessionType = 'NY' | 'Asia' | 'London'
 
 export type Emotion =
   | 'very_happy'
@@ -12,12 +13,26 @@ export type Emotion =
 export interface TradeLog {
   id: string
   result: TradeResult
-  symbol: string           // NQ | ES | GC | MNQ | MES | MGC
+  accounts: AccountType[]
+  symbol: string
   side: 'Long' | 'Short'
-  pnl: string              // dollar P&L entered by user, e.g. "250" or "-150"
+  contracts: string
   entryPrice: string
   exitPrice: string
+  takeProfit: string
+  stopLoss: string
+  pnl: string              // auto-calculated from symbol/entry/exit/contracts
+  drawdown: string         // points of drawdown — shown for Win / BE / Faded
   confluences: string[]
+  sessions: SessionType[]
+  dol: string[]            // draw on liquidity tags
+  htfImgKey?: string       // high timeframe screenshot (base64)
+  execImgKey?: string      // execution screenshot (base64)
+}
+
+export interface TradingRule {
+  id: string
+  text: string
 }
 
 export interface JournalEntry {
@@ -25,9 +40,12 @@ export interface JournalEntry {
   date: string             // YYYY-MM-DD
   premktImgKey?: string
   premktAnalysis: string
+  redFolderNews: boolean
+  redFolderNewsText: string
   trades: TradeLog[]
   emotion?: Emotion
   postMarketNotes: string
+  rulesFollowed: string[]  // IDs of TradingRules followed this day
   updatedAt: string
 }
 
@@ -36,7 +54,6 @@ export interface MonthlyGoal {
   month: string            // YYYY-MM
 }
 
-// ── Derived dashboard trade (computed from JournalEntry.trades) ───────────────
 export interface DashTrade {
   id: string
   date: string

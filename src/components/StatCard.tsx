@@ -9,20 +9,53 @@ interface StatCardProps {
 export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
   const valueColor =
     positive === null || positive === undefined
-      ? 'text-[#f0f0f0]'
+      ? '#f0f0f0'
       : positive
-      ? 'text-emerald-400'
-      : 'text-red-400'
+      ? '#4ade80'
+      : '#f87171'
+
+  const accentColor =
+    positive === null || positive === undefined
+      ? '#2a2a2a'
+      : positive
+      ? 'rgba(74,222,128,0.4)'
+      : 'rgba(248,113,113,0.4)'
 
   return (
-    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-[#666] uppercase tracking-wider">{label}</span>
-        <div className="text-[#444]">{icon}</div>
+    <div
+      style={{
+        background: '#141414',
+        border: '1px solid #1f1f1f',
+        borderLeft: `3px solid ${accentColor}`,
+        borderRadius: 14,
+        padding: '18px 18px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 12,
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-1px)'
+        e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = 'none'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 10, fontWeight: 600, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          {label}
+        </span>
+        <span style={{ color: '#333' }}>{icon}</span>
       </div>
       <div>
-        <div className={`text-2xl font-bold tracking-tight ${valueColor}`}>{value}</div>
-        {sub && <div className="text-xs text-[#555] mt-1">{sub}</div>}
+        <div style={{ fontSize: 22, fontWeight: 700, color: valueColor, letterSpacing: '-0.02em', lineHeight: 1 }}>
+          {value}
+        </div>
+        {sub && (
+          <div style={{ fontSize: 11, color: '#444', marginTop: 5 }}>{sub}</div>
+        )}
       </div>
     </div>
   )

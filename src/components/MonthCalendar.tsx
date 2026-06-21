@@ -1,10 +1,10 @@
-import { getDayPnl, formatCurrency } from '../utils/stats'
-import type { Trade } from '../types'
+import { getDayPnl, hasDayTrades, formatCurrency } from '../utils/stats'
+import type { DashTrade } from '../types'
 
 interface MonthCalendarProps {
   year: number
   month: number
-  trades: Trade[]
+  trades: DashTrade[]
   onDayClick: (date: string) => void
 }
 
@@ -13,8 +13,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export function MonthCalendar({ year, month, trades, onDayClick }: MonthCalendarProps) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const today = new Date()
-  const todayStr = today.toISOString().split('T')[0]
+  const todayStr = new Date().toISOString().split('T')[0]
 
   const cells: (number | null)[] = [...Array(firstDay).fill(null)]
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
@@ -23,64 +22,72 @@ export function MonthCalendar({ year, month, trades, onDayClick }: MonthCalendar
   const pad = (n: number) => String(n).padStart(2, '0')
 
   return (
-    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-5">
-      <h3 className="text-sm font-semibold text-[#f0f0f0] mb-4">Trade Calendar</h3>
-      <div className="grid grid-cols-7 gap-1 mb-2">
+    <div style={{ background: '#141414', border: '1px solid #1f1f1f', borderRadius: 16, padding: '20px 20px 16px' }}>
+      <h3 style={{ fontSize: 13, fontWeight: 600, color: '#f0f0f0', marginBottom: 16 }}>Trade Calendar</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 6 }}>
         {WEEKDAYS.map(d => (
-          <div key={d} className="text-center text-xs text-[#555] font-medium py-1">
+          <div key={d} style={{ textAlign: 'center', fontSize: 11, color: '#444', fontWeight: 500, padding: '4px 0' }}>
             {d}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {cells.map((day, i) => {
-          if (day === null) {
-            return <div key={`empty-${i}`} />
-          }
+          if (day === null) return <div key={`empty-${i}`} />
+
           const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
           const pnl = getDayPnl(trades, dateStr)
-          const hasTrades = trades.some(t => t.date === dateStr)
+          const hasData = hasDayTrades(trades, dateStr)
           const isToday = dateStr === todayStr
           const isPositive = pnl > 0
           const isNegative = pnl < 0
-          const isWeekend = new Date(dateStr).getDay() === 0 || new Date(dateStr).getDay() === 6
+          const isWeekend = new Date(dateStr + 'T12:00:00').getDay() === 0 || new Date(dateStr + 'T12:00:00').getDay() === 6
+          const count = trades.filter(t => t.date === dateStr).length
+
+          let cellBg = '#0e0e0e'
+          let cellBorder = '#1a1a1a'
+          let dayNumColor = '#444'
+
+          if (hasData && isPositive) { cellBg = 'rgba(52,211,153,0.08)'; cellBorder = 'rgba(52,211,153,0.2)'; dayNumColor = '#cccccc' }
+          if (hasData && isNegative) { cellBg = 'rgba(248,113,113,0.08)'; cellBorder = 'rgba(248,113,113,0.2)'; dayNumColor = '#cccccc' }
+          if (hasData && !isPositive && !isNegative) { cellBg = 'rgba(255,255,255,0.04)'; cellBorder = '#2a2a2a'; dayNumColor = '#cccccc' }
 
           return (
             <button
               key={dateStr}
               onClick={() => onDayClick(dateStr)}
-              className={`
-                relative rounded-lg p-1.5 min-h-[62px] flex flex-col items-center justify-start gap-1
-                transition-all duration-150 group
-                ${isToday ? 'ring-1 ring-[#4a4a4a]' : ''}
-                ${hasTrades && isPositive ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20' : ''}
-                ${hasTrades && isNegative ? 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/20' : ''}
-                ${!hasTrades ? 'bg-[#0e0e0e] hover:bg-[#181818] border border-[#1e1e1e]' : ''}
-                ${isWeekend && !hasTrades ? 'opacity-40' : ''}
-              `}
+              style={{
+                borderRadius: 10,
+                padding: '8px 4px 6px',
+                minHeight: 64,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 3,
+                background: cellBg,
+                border: `1px solid ${isToday ? '#4a4a4a' : cellBorder}`,
+                cursor: 'pointer',
+                opacity: isWeekend && !hasData ? 0.35 : 1,
+                outline: isToday ? '1px solid #333' : 'none',
+                outlineOffset: 2,
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#3a3a3a'; e.currentTarget.style.background = hasData ? cellBg : '#151515' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? '#4a4a4a' : cellBorder; e.currentTarget.style.background = cellBg }}
             >
-              <span
-                className={`text-xs font-medium ${
-                  isToday ? 'text-[#f0f0f0]' : hasTrades ? 'text-[#cccccc]' : 'text-[#444]'
-                }`}
-              >
+              <span style={{ fontSize: 12, fontWeight: 500, color: dayNumColor, lineHeight: 1 }}>
                 {day}
               </span>
-              {hasTrades && (
-                <span
-                  className={`text-[10px] font-bold leading-tight ${
-                    isPositive ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                >
-                  {pnl >= 0 ? '+' : ''}
-                  {formatCurrency(pnl)}
-                </span>
-              )}
-              {hasTrades && (
-                <span className="text-[9px] text-[#555]">
-                  {trades.filter(t => t.date === dateStr).length} trade
-                  {trades.filter(t => t.date === dateStr).length !== 1 ? 's' : ''}
-                </span>
+              {hasData && (
+                <>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: isPositive ? '#4ade80' : isNegative ? '#f87171' : '#888', lineHeight: 1 }}>
+                    {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                  </span>
+                  <span style={{ fontSize: 9, color: '#555', lineHeight: 1 }}>
+                    {count} trade{count !== 1 ? 's' : ''}
+                  </span>
+                </>
               )}
             </button>
           )

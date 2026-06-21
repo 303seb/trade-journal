@@ -1,30 +1,45 @@
-import type { Trade } from '../types'
+import type { JournalEntry, DashTrade } from '../types'
 
-export function getMonthTrades(trades: Trade[], year: number, month: number): Trade[] {
+export function getDashTrades(entries: JournalEntry[]): DashTrade[] {
+  return entries.flatMap(entry =>
+    entry.trades
+      .filter(t => t.result !== "Didn't take")
+      .map(t => ({
+        id: t.id,
+        date: entry.date,
+        pnl: parseFloat(t.pnl) || 0,
+        result: t.result,
+        symbol: t.symbol || '',
+        side: (t.side || 'Long') as 'Long' | 'Short',
+      }))
+  )
+}
+
+export function getMonthTrades(trades: DashTrade[], year: number, month: number): DashTrade[] {
   return trades.filter(t => {
-    const d = new Date(t.date)
+    const d = new Date(t.date + 'T12:00:00')
     return d.getFullYear() === year && d.getMonth() === month
   })
 }
 
-export function calcNetPnl(trades: Trade[]): number {
+export function calcNetPnl(trades: DashTrade[]): number {
   return trades.reduce((sum, t) => sum + t.pnl, 0)
 }
 
-export function calcWinRate(trades: Trade[]): number {
+export function calcWinRate(trades: DashTrade[]): number {
   if (trades.length === 0) return 0
   const wins = trades.filter(t => t.pnl > 0).length
   return (wins / trades.length) * 100
 }
 
-export function calcProfitFactor(trades: Trade[]): number {
+export function calcProfitFactor(trades: DashTrade[]): number {
   const grossProfit = trades.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0)
   const grossLoss = Math.abs(trades.filter(t => t.pnl < 0).reduce((s, t) => s + t.pnl, 0))
   if (grossLoss === 0) return grossProfit > 0 ? 999 : 0
   return grossProfit / grossLoss
 }
 
-export function calcAvgRR(trades: Trade[]): number {
+export function calcAvgRR(trades: DashTrade[]): number {
   const winners = trades.filter(t => t.pnl > 0)
   const losers = trades.filter(t => t.pnl < 0)
   if (winners.length === 0 || losers.length === 0) return 0
@@ -34,25 +49,12 @@ export function calcAvgRR(trades: Trade[]): number {
   return avgWin / avgLoss
 }
 
-export function calcAverageDailyPnl(trades: Trade[]): number {
-  if (trades.length === 0) return 0
-  const byDay = groupByDate(trades)
-  const days = Object.keys(byDay)
-  if (days.length === 0) return 0
-  const total = days.reduce((s, d) => s + calcNetPnl(byDay[d]), 0)
-  return total / days.length
-}
-
-export function groupByDate(trades: Trade[]): Record<string, Trade[]> {
-  return trades.reduce<Record<string, Trade[]>>((acc, t) => {
-    if (!acc[t.date]) acc[t.date] = []
-    acc[t.date].push(t)
-    return acc
-  }, {})
-}
-
-export function getDayPnl(trades: Trade[], date: string): number {
+export function getDayPnl(trades: DashTrade[], date: string): number {
   return trades.filter(t => t.date === date).reduce((s, t) => s + t.pnl, 0)
+}
+
+export function hasDayTrades(trades: DashTrade[], date: string): boolean {
+  return trades.some(t => t.date === date)
 }
 
 export function formatCurrency(val: number): string {

@@ -1,22 +1,3 @@
-// ── Dashboard types ───────────────────────────────────────────────────────────
-export interface Trade {
-  id: string
-  date: string // YYYY-MM-DD
-  symbol: string
-  side: 'Long' | 'Short'
-  contracts: number
-  entryPrice: number
-  exitPrice: number
-  pnl: number
-  notes: string
-  createdAt: string
-}
-
-export interface MonthlyGoal {
-  amount: number
-  month: string // YYYY-MM
-}
-
 // ── Journal types ─────────────────────────────────────────────────────────────
 export type TradeResult = 'Win' | 'Loss' | 'BE' | "Didn't take"
 
@@ -31,6 +12,9 @@ export type Emotion =
 export interface TradeLog {
   id: string
   result: TradeResult
+  symbol: string           // NQ | ES | GC | MNQ | MES | MGC
+  side: 'Long' | 'Short'
+  pnl: string              // dollar P&L entered by user, e.g. "250" or "-150"
   entryPrice: string
   exitPrice: string
   confluences: string[]
@@ -38,14 +22,26 @@ export interface TradeLog {
 
 export interface JournalEntry {
   id: string
-  date: string // YYYY-MM-DD
-  // Premarket
+  date: string             // YYYY-MM-DD
   premktImgKey?: string
   premktAnalysis: string
-  // Trades
   trades: TradeLog[]
-  // Post Market
   emotion?: Emotion
   postMarketNotes: string
   updatedAt: string
+}
+
+export interface MonthlyGoal {
+  amount: number
+  month: string            // YYYY-MM
+}
+
+// ── Derived dashboard trade (computed from JournalEntry.trades) ───────────────
+export interface DashTrade {
+  id: string
+  date: string
+  pnl: number
+  result: TradeResult
+  symbol: string
+  side: 'Long' | 'Short'
 }

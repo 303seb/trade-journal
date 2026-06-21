@@ -8,7 +8,7 @@ import './index.css'
 
 function Strategies() {
   return (
-    <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#444', fontSize: 14 }}>
       Strategies — coming soon
     </div>
   )
@@ -17,25 +17,28 @@ function Strategies() {
 function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [journalDate, setJournalDate] = useState<string | undefined>()
 
   const {
-    trades,
     journalEntries,
     monthlyGoals,
     confluenceTags,
-    addTrade,
-    deleteTrade,
     upsertJournalEntry,
     setMonthlyGoal,
     addConfluenceTag,
     deleteConfluenceTag,
   } = useStore()
 
+  const navigateToJournal = (date?: string) => {
+    setJournalDate(date)
+    setPage('journal')
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#0e0e0e]">
       <Sidebar
         page={page}
-        onNavigate={setPage}
+        onNavigate={p => { setPage(p); if (p !== 'journal') setJournalDate(undefined) }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(v => !v)}
       />
@@ -43,11 +46,10 @@ function App() {
         {page === 'dashboard' && (
           <div className="h-full overflow-y-auto">
             <Dashboard
-              trades={trades}
+              journalEntries={journalEntries}
               monthlyGoals={monthlyGoals}
-              onAddTrade={addTrade}
-              onDeleteTrade={deleteTrade}
               onSetGoal={setMonthlyGoal}
+              onNavigateToJournal={navigateToJournal}
             />
           </div>
         )}
@@ -59,6 +61,7 @@ function App() {
               onSave={upsertJournalEntry}
               onAddConfluenceTag={addConfluenceTag}
               onDeleteConfluenceTag={deleteConfluenceTag}
+              initialDate={journalDate}
             />
           </div>
         )}

@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, TrendingUp, DollarSign, BarChart2, Award, Activity } from 'lucide-react'
+import { ChevronLeft, ChevronRight, NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
 import { MonthCalendar } from '../components/MonthCalendar'
-import { TradeModal } from '../components/TradeModal'
-import { DayTradesDrawer } from '../components/DayTradesDrawer'
 import {
+  getDashTrades,
   getMonthTrades,
   calcNetPnl,
   calcWinRate,
@@ -15,7 +14,7 @@ import {
   formatCurrency,
   formatPct,
 } from '../utils/stats'
-import type { Trade } from '../types'
+import type { JournalEntry } from '../types'
 
 const QUOTES = [
   { text: "The goal of a successful trader is to make the best trades. Money is secondary.", author: "Alexander Elder" },
@@ -28,29 +27,27 @@ const QUOTES = [
 ]
 
 interface DashboardProps {
-  trades: Trade[]
+  journalEntries: JournalEntry[]
   monthlyGoals: { month: string; amount: number }[]
-  onAddTrade: (trade: Omit<Trade, 'id' | 'createdAt'>) => void
-  onDeleteTrade: (id: string) => void
   onSetGoal: (month: string, amount: number) => void
+  onNavigateToJournal: (date?: string) => void
 }
 
-export function Dashboard({ trades, monthlyGoals, onAddTrade, onDeleteTrade, onSetGoal }: DashboardProps) {
+export function Dashboard({ journalEntries, monthlyGoals, onSetGoal, onNavigateToJournal }: DashboardProps) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
-  const [showTradeModal, setShowTradeModal] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
-  const [defaultDate, setDefaultDate] = useState<string | undefined>()
 
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const monthTrades = getMonthTrades(trades, year, month)
+
+  const allTrades = getDashTrades(journalEntries)
+  const monthTrades = getMonthTrades(allTrades, year, month)
   const netPnl = calcNetPnl(monthTrades)
   const winRate = calcWinRate(monthTrades)
   const profitFactor = calcProfitFactor(monthTrades)
   const avgRR = calcAvgRR(monthTrades)
-  const todayPnl = getDayPnl(trades, todayStr)
+  const todayPnl = getDayPnl(allTrades, todayStr)
   const goalAmount = monthlyGoals.find(g => g.month === monthStr)?.amount ?? 0
 
   const prevMonth = () => {
@@ -62,87 +59,96 @@ export function Dashboard({ trades, monthlyGoals, onAddTrade, onDeleteTrade, onS
     else setMonth(m => m + 1)
   }
 
-  const monthLabel = new Date(year, month).toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  })
-
+  const monthLabel = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const quote = QUOTES[now.getDay()]
-  const selectedDateTrades = selectedDate ? trades.filter(t => t.date === selectedDate) : []
 
   return (
-    <div className="flex flex-col gap-5 p-6 max-w-6xl mx-auto w-full">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '28px 32px', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={prevMonth}
-            className="p-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-[#666] hover:text-[#f0f0f0] hover:border-[#444] transition-all"
+            style={{ padding: '6px 8px', borderRadius: 10, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#666', cursor: 'pointer', display: 'flex', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f0f0f0'; e.currentTarget.style.borderColor = '#444' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2a2a2a' }}
           >
             <ChevronLeft size={16} />
           </button>
-          <h1 className="text-xl font-bold text-[#f0f0f0]">{monthLabel}</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f0f0f0', letterSpacing: '-0.02em' }}>{monthLabel}</h1>
           <button
             onClick={nextMonth}
-            className="p-1.5 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-[#666] hover:text-[#f0f0f0] hover:border-[#444] transition-all"
+            style={{ padding: '6px 8px', borderRadius: 10, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#666', cursor: 'pointer', display: 'flex', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f0f0f0'; e.currentTarget.style.borderColor = '#444' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#2a2a2a' }}
           >
             <ChevronRight size={16} />
           </button>
         </div>
         <button
-          onClick={() => { setDefaultDate(undefined); setShowTradeModal(true) }}
-          className="flex items-center gap-2 bg-[#f0f0f0] hover:bg-white text-[#111] rounded-lg px-4 py-2 text-sm font-semibold transition-colors"
+          onClick={() => onNavigateToJournal(todayStr)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px',
+            background: '#f0f0f0', color: '#111', borderRadius: 10, border: 'none',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#ffffff')}
+          onMouseLeave={e => (e.currentTarget.style.background = '#f0f0f0')}
         >
-          <Plus size={16} />
-          Add Trade
+          <NotebookPen size={15} />
+          Add Journal Entry
         </button>
       </div>
 
       {/* Stats — 5 cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         <StatCard
           label="Total P&L"
           value={formatCurrency(netPnl)}
-          sub={`${monthTrades.length} trades`}
+          sub={`${monthTrades.length} trade${monthTrades.length !== 1 ? 's' : ''}`}
           positive={monthTrades.length === 0 ? null : netPnl >= 0}
-          icon={<DollarSign size={16} />}
+          icon={<DollarSign size={15} />}
         />
         <StatCard
           label="Today's P&L"
           value={formatCurrency(todayPnl)}
           sub="current day"
           positive={todayPnl === 0 ? null : todayPnl > 0}
-          icon={<TrendingUp size={16} />}
+          icon={<TrendingUp size={15} />}
         />
         <StatCard
           label="Win Rate"
           value={formatPct(winRate)}
           sub={`${monthTrades.filter(t => t.pnl > 0).length}W / ${monthTrades.filter(t => t.pnl < 0).length}L`}
           positive={monthTrades.length === 0 ? null : winRate >= 50}
-          icon={<Award size={16} />}
+          icon={<Award size={15} />}
         />
         <StatCard
           label="Profit Factor"
           value={profitFactor >= 999 ? '∞' : profitFactor.toFixed(2)}
           sub={profitFactor >= 1 ? 'Profitable' : 'Unprofitable'}
           positive={monthTrades.length === 0 ? null : profitFactor >= 1}
-          icon={<BarChart2 size={16} />}
+          icon={<BarChart2 size={15} />}
         />
         <StatCard
           label="Avg RR"
           value={avgRR > 0 ? `${avgRR.toFixed(2)}R` : '—'}
           sub="reward / risk"
           positive={avgRR === 0 ? null : avgRR >= 1}
-          icon={<Activity size={16} />}
+          icon={<Activity size={15} />}
         />
       </div>
 
-      {/* Inspirational Quote */}
-      <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl px-6 py-5">
-        <p className="text-[#cccccc] text-sm italic leading-relaxed">
+      {/* Quote */}
+      <div style={{
+        background: '#141414', border: '1px solid #1f1f1f', borderRadius: 14,
+        padding: '20px 28px', textAlign: 'center',
+      }}>
+        <p style={{ fontSize: 14, color: '#aaaaaa', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
           &ldquo;{quote.text}&rdquo;
         </p>
-        <p className="text-[#555] text-xs mt-2">— {quote.author}</p>
+        <p style={{ fontSize: 12, color: '#444', marginTop: 10, margin: '10px 0 0' }}>— {quote.author}</p>
       </div>
 
       {/* Monthly Milestone */}
@@ -153,36 +159,14 @@ export function Dashboard({ trades, monthlyGoals, onAddTrade, onDeleteTrade, onS
         onSetGoal={amount => onSetGoal(monthStr, amount)}
       />
 
-      {/* Trade Calendar */}
+      {/* Calendar — clicking a day navigates to journal */}
       <MonthCalendar
         year={year}
         month={month}
-        trades={trades}
-        onDayClick={date => {
-          setSelectedDate(date)
-          setDefaultDate(date)
-        }}
+        trades={allTrades}
+        onDayClick={date => onNavigateToJournal(date)}
       />
 
-      {/* Modals */}
-      {showTradeModal && (
-        <TradeModal
-          defaultDate={defaultDate}
-          onSave={onAddTrade}
-          onClose={() => setShowTradeModal(false)}
-        />
-      )}
-      {selectedDate && (
-        <DayTradesDrawer
-          date={selectedDate}
-          trades={selectedDateTrades}
-          onClose={() => setSelectedDate(null)}
-          onDelete={id => {
-            onDeleteTrade(id)
-            if (selectedDateTrades.length <= 1) setSelectedDate(null)
-          }}
-        />
-      )}
     </div>
   )
 }

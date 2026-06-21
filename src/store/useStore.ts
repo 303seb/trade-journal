@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react'
-import type { Trade, JournalEntry, MonthlyGoal } from '../types'
+import type { JournalEntry, MonthlyGoal } from '../types'
 
 const KEYS = {
-  trades: 'tj_trades',
   journal: 'tj_journal',
   goals: 'tj_goals',
   confluences: 'tj_confluences',
@@ -31,7 +30,6 @@ export function genId() {
 }
 
 export function useStore() {
-  const [trades, setTrades] = useState<Trade[]>(() => load(KEYS.trades, []))
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() =>
     load(KEYS.journal, [])
   )
@@ -45,17 +43,6 @@ export function useStore() {
     return JSON.parse(stored) as string[]
   })
 
-  // ── Dashboard trades ──────────────────────────────────────────────────────
-  const addTrade = useCallback((trade: Omit<Trade, 'id' | 'createdAt'>) => {
-    const next: Trade = { ...trade, id: genId(), createdAt: new Date().toISOString() }
-    setTrades(prev => { const n = [...prev, next]; save(KEYS.trades, n); return n })
-  }, [])
-
-  const deleteTrade = useCallback((id: string) => {
-    setTrades(prev => { const n = prev.filter(t => t.id !== id); save(KEYS.trades, n); return n })
-  }, [])
-
-  // ── Journal entries ───────────────────────────────────────────────────────
   const upsertJournalEntry = useCallback((entry: JournalEntry) => {
     setJournalEntries(prev => {
       const exists = prev.some(e => e.date === entry.date)
@@ -67,7 +54,6 @@ export function useStore() {
     })
   }, [])
 
-  // ── Monthly goals ─────────────────────────────────────────────────────────
   const setMonthlyGoal = useCallback((month: string, amount: number) => {
     setMonthlyGoals(prev => {
       const next = prev.some(g => g.month === month)
@@ -78,7 +64,6 @@ export function useStore() {
     })
   }, [])
 
-  // ── Confluence tags ───────────────────────────────────────────────────────
   const addConfluenceTag = useCallback((tag: string) => {
     setConfluenceTags(prev => {
       if (prev.includes(tag)) return prev
@@ -97,12 +82,9 @@ export function useStore() {
   }, [])
 
   return {
-    trades,
     journalEntries,
     monthlyGoals,
     confluenceTags,
-    addTrade,
-    deleteTrade,
     upsertJournalEntry,
     setMonthlyGoal,
     addConfluenceTag,

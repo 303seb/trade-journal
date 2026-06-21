@@ -33,27 +33,27 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
   })
 
   return (
-    <div className="bg-[#161b27] border border-[#1e2535] rounded-xl p-5">
+    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Target size={16} className="text-violet-400" />
-          <span className="text-sm font-semibold text-white">Monthly Income Goal</span>
-          <span className="text-xs text-slate-500">— {monthLabel}</span>
+          <Target size={16} className="text-[#888]" />
+          <span className="text-sm font-semibold text-[#f0f0f0]">Monthly Milestone</span>
+          <span className="text-xs text-[#555]">— {monthLabel}</span>
         </div>
         {editing ? (
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-sm">$</span>
+            <span className="text-[#666] text-sm">$</span>
             <input
               type="number"
               value={inputVal}
               onChange={e => setInputVal(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
-              className="bg-[#0f1117] border border-[#2d3748] rounded-lg px-3 py-1 text-sm text-white w-32 focus:border-violet-500"
+              className="bg-[#0e0e0e] border border-[#333] rounded-lg px-3 py-1 text-sm text-[#f0f0f0] w-32 focus:border-[#555]"
               autoFocus
             />
             <button
               onClick={handleSave}
-              className="bg-violet-600 hover:bg-violet-500 text-white rounded-lg p-1.5 transition-colors"
+              className="bg-[#f0f0f0] hover:bg-white text-[#111] rounded-lg p-1.5 transition-colors"
             >
               <Check size={14} />
             </button>
@@ -61,7 +61,7 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
         ) : (
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-violet-400 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-[#666] hover:text-[#f0f0f0] transition-colors"
           >
             <Edit2 size={13} />
             {goal > 0 ? `Goal: ${formatCurrency(goal)}` : 'Set goal'}
@@ -71,30 +71,30 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
 
       {goal > 0 ? (
         <>
-          <div className="relative h-3 bg-[#1e2535] rounded-full overflow-hidden mb-3">
+          <div className="relative h-3 bg-[#1e1e1e] rounded-full overflow-hidden mb-3">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 isAhead
                   ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-violet-600 to-violet-400'
+                  : 'bg-gradient-to-r from-[#444] to-[#666]'
               }`}
               style={{ width: `${Math.max(progress, 0)}%` }}
             />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className={isAhead ? 'text-emerald-400 font-medium' : 'text-slate-400'}>
+            <span className={isAhead ? 'text-emerald-400 font-medium' : 'text-[#666]'}>
               {isAhead
                 ? `+${formatCurrency(currentPnl - goal)} over goal`
                 : `${formatCurrency(remaining)} remaining`}
             </span>
-            <span className={`font-semibold ${isAhead ? 'text-emerald-400' : 'text-violet-400'}`}>
+            <span className={`font-semibold ${isAhead ? 'text-emerald-400' : 'text-[#999]'}`}>
               {progress.toFixed(1)}%
             </span>
           </div>
         </>
       ) : (
-        <div className="text-xs text-slate-500 text-center py-2">
-          Set a monthly income goal to track your progress
+        <div className="text-xs text-[#444] text-center py-2">
+          Set a monthly goal to track your progress
         </div>
       )}
     </div>

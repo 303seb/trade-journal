@@ -18,7 +18,7 @@ export interface MonthlyGoal {
 }
 
 // ── Journal types ─────────────────────────────────────────────────────────────
-export type TradeResult = 'Win' | 'Loss' | 'BE' | 'Faded'
+export type TradeResult = 'Win' | 'Loss' | 'BE' | "Didn't take"
 
 export type Emotion =
   | 'very_happy'

@@ -19,26 +19,26 @@ export function DayTradesDrawer({ date, trades, onClose, onDelete }: DayTradesDr
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-[#161b27] border-l border-[#1e2535] w-full max-w-md h-full overflow-y-auto"
+        className="bg-[#141414] border-l border-[#1f1f1f] w-full max-w-md h-full overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-[#161b27] border-b border-[#1e2535] p-5 flex items-start justify-between z-10">
+        <div className="sticky top-0 bg-[#141414] border-b border-[#1f1f1f] p-5 flex items-start justify-between z-10">
           <div>
-            <h2 className="text-base font-semibold text-white">{label}</h2>
+            <h2 className="text-base font-semibold text-[#f0f0f0]">{label}</h2>
             <span className={`text-sm font-bold ${dayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {dayPnl >= 0 ? '+' : ''}{formatCurrency(dayPnl)}
             </span>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors mt-0.5">
+          <button onClick={onClose} className="text-[#555] hover:text-[#f0f0f0] transition-colors mt-0.5">
             <X size={18} />
           </button>
         </div>
 
         <div className="p-5 flex flex-col gap-3">
           {trades.length === 0 ? (
-            <p className="text-slate-500 text-sm text-center py-8">No trades on this day.</p>
+            <p className="text-[#444] text-sm text-center py-8">No trades on this day.</p>
           ) : (
             trades.map(trade => (
               <div
@@ -56,7 +56,7 @@ export function DayTradesDrawer({ date, trades, onClose, onDelete }: DayTradesDr
                     ) : (
                       <TrendingDown size={15} className="text-red-400" />
                     )}
-                    <span className="font-bold text-white text-sm">{trade.symbol}</span>
+                    <span className="font-bold text-[#f0f0f0] text-sm">{trade.symbol}</span>
                     <span
                       className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         trade.side === 'Long'
@@ -68,37 +68,35 @@ export function DayTradesDrawer({ date, trades, onClose, onDelete }: DayTradesDr
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`text-sm font-bold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-                    >
+                    <span className={`text-sm font-bold ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {trade.pnl >= 0 ? '+' : ''}{formatCurrency(trade.pnl)}
                     </span>
                     <button
                       onClick={() => onDelete(trade.id)}
-                      className="text-slate-600 hover:text-red-400 transition-colors"
+                      className="text-[#444] hover:text-red-400 transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-xs text-slate-400">
+                <div className="grid grid-cols-3 gap-2 text-xs text-[#888]">
                   <div>
-                    <span className="block text-slate-500">Qty</span>
-                    <span className="text-white">{trade.contracts}</span>
+                    <span className="block text-[#555]">Qty</span>
+                    <span className="text-[#ccc]">{trade.contracts}</span>
                   </div>
                   <div>
-                    <span className="block text-slate-500">Entry</span>
-                    <span className="text-white">{trade.entryPrice}</span>
+                    <span className="block text-[#555]">Entry</span>
+                    <span className="text-[#ccc]">{trade.entryPrice}</span>
                   </div>
                   <div>
-                    <span className="block text-slate-500">Exit</span>
-                    <span className="text-white">{trade.exitPrice}</span>
+                    <span className="block text-[#555]">Exit</span>
+                    <span className="text-[#ccc]">{trade.exitPrice}</span>
                   </div>
                 </div>
 
                 {trade.notes && (
-                  <p className="mt-3 text-xs text-slate-400 border-t border-[#1e2535] pt-3 leading-relaxed">
+                  <p className="mt-3 text-xs text-[#666] border-t border-[#1f1f1f] pt-3 leading-relaxed">
                     {trade.notes}
                   </p>
                 )}

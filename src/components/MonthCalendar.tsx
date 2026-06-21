@@ -23,11 +23,11 @@ export function MonthCalendar({ year, month, trades, onDayClick }: MonthCalendar
   const pad = (n: number) => String(n).padStart(2, '0')
 
   return (
-    <div className="bg-[#161b27] border border-[#1e2535] rounded-xl p-5">
-      <h3 className="text-sm font-semibold text-white mb-4">Monthly Performance</h3>
+    <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-5">
+      <h3 className="text-sm font-semibold text-[#f0f0f0] mb-4">Trade Calendar</h3>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {WEEKDAYS.map(d => (
-          <div key={d} className="text-center text-xs text-slate-500 font-medium py-1">
+          <div key={d} className="text-center text-xs text-[#555] font-medium py-1">
             {d}
           </div>
         ))}
@@ -52,16 +52,16 @@ export function MonthCalendar({ year, month, trades, onDayClick }: MonthCalendar
               className={`
                 relative rounded-lg p-1.5 min-h-[62px] flex flex-col items-center justify-start gap-1
                 transition-all duration-150 group
-                ${isToday ? 'ring-1 ring-violet-500' : ''}
+                ${isToday ? 'ring-1 ring-[#4a4a4a]' : ''}
                 ${hasTrades && isPositive ? 'bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20' : ''}
                 ${hasTrades && isNegative ? 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/20' : ''}
-                ${!hasTrades ? 'bg-[#0f1117] hover:bg-[#1a2035] border border-[#1e2535]' : ''}
-                ${isWeekend && !hasTrades ? 'opacity-50' : ''}
+                ${!hasTrades ? 'bg-[#0e0e0e] hover:bg-[#181818] border border-[#1e1e1e]' : ''}
+                ${isWeekend && !hasTrades ? 'opacity-40' : ''}
               `}
             >
               <span
                 className={`text-xs font-medium ${
-                  isToday ? 'text-violet-400' : hasTrades ? 'text-white' : 'text-slate-500'
+                  isToday ? 'text-[#f0f0f0]' : hasTrades ? 'text-[#cccccc]' : 'text-[#444]'
                 }`}
               >
                 {day}
@@ -77,7 +77,7 @@ export function MonthCalendar({ year, month, trades, onDayClick }: MonthCalendar
                 </span>
               )}
               {hasTrades && (
-                <span className="text-[9px] text-slate-400">
+                <span className="text-[9px] text-[#555]">
                   {trades.filter(t => t.date === dateStr).length} trade
                   {trades.filter(t => t.date === dateStr).length !== 1 ? 's' : ''}
                 </span>

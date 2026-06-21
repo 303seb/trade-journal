@@ -32,7 +32,7 @@ function App() {
   } = useStore()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0f1117]">
+    <div className="flex h-screen overflow-hidden bg-[#0e0e0e]">
       <Sidebar
         page={page}
         onNavigate={setPage}

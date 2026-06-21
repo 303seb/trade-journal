@@ -24,6 +24,16 @@ export function calcProfitFactor(trades: Trade[]): number {
   return grossProfit / grossLoss
 }
 
+export function calcAvgRR(trades: Trade[]): number {
+  const winners = trades.filter(t => t.pnl > 0)
+  const losers = trades.filter(t => t.pnl < 0)
+  if (winners.length === 0 || losers.length === 0) return 0
+  const avgWin = winners.reduce((s, t) => s + t.pnl, 0) / winners.length
+  const avgLoss = Math.abs(losers.reduce((s, t) => s + t.pnl, 0) / losers.length)
+  if (avgLoss === 0) return 0
+  return avgWin / avgLoss
+}
+
 export function calcAverageDailyPnl(trades: Trade[]): number {
   if (trades.length === 0) return 0
   const byDay = groupByDate(trades)

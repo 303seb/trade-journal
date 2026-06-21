@@ -18,16 +18,16 @@ const NAV_ITEMS: { page: Page; label: string; icon: React.ReactNode }[] = [
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps) {
   return (
     <aside
-      className="h-screen flex flex-col bg-[#0d1117] border-r border-[#1e2535] shrink-0 transition-all duration-200"
+      className="h-screen flex flex-col bg-[#0d0d0d] border-r border-[#1e1e1e] shrink-0 transition-all duration-200"
       style={{ width: collapsed ? 60 : 200 }}
     >
       {/* Logo */}
-      <div className={`flex items-center gap-2.5 px-3 h-16 border-b border-[#1e2535] ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center shrink-0">
-          <TrendingUp size={15} className="text-white" />
+      <div className={`flex items-center gap-2.5 px-3 h-16 border-b border-[#1e1e1e] ${collapsed ? 'justify-center' : ''}`}>
+        <div className="w-8 h-8 rounded-lg bg-[#1e1e1e] border border-[#333] flex items-center justify-center shrink-0">
+          <TrendingUp size={15} className="text-[#cccccc]" />
         </div>
         {!collapsed && (
-          <span className="text-sm font-bold text-white tracking-tight whitespace-nowrap">
+          <span className="text-sm font-bold text-[#f0f0f0] tracking-tight whitespace-nowrap">
             TradeJournal
           </span>
         )}
@@ -45,8 +45,8 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
               className={`
                 flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all
                 ${active
-                  ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
-                  : 'text-slate-400 hover:text-white hover:bg-[#161b27] border border-transparent'
+                  ? 'bg-[#1f1f1f] text-[#f0f0f0] border border-[#3a3a3a]'
+                  : 'text-[#666666] hover:text-[#cccccc] hover:bg-[#181818] border border-transparent'
                 }
                 ${collapsed ? 'justify-center' : ''}
               `}
@@ -59,11 +59,11 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
       </nav>
 
       {/* Collapse toggle */}
-      <div className="p-2 border-t border-[#1e2535]">
+      <div className="p-2 border-t border-[#1e1e1e]">
         <button
           onClick={onToggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="w-full flex items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-slate-500 hover:text-slate-300 hover:bg-[#161b27] transition-colors text-xs"
+          className="w-full flex items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-[#555] hover:text-[#999] hover:bg-[#181818] transition-colors text-xs"
         >
           {collapsed ? <ChevronRight size={15} /> : (
             <>

@@ -1,6 +1,6 @@
-import { LayoutDashboard, BookOpen, TrendingUp, BarChart2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, TrendingUp, BarChart2, Newspaper, Wallet, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
 
-export type Page = 'dashboard' | 'journal' | 'strategies'
+export type Page = 'dashboard' | 'trades' | 'analytics' | 'news' | 'accounts' | 'settings'
 
 interface SidebarProps {
   page: Page
@@ -11,8 +11,11 @@ interface SidebarProps {
 
 const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
   { page: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-  { page: 'journal',   label: 'Journal',   Icon: BookOpen        },
-  { page: 'strategies',label: 'Strategies',Icon: BarChart2       },
+  { page: 'trades',    label: 'Trades',    Icon: ClipboardList   },
+  { page: 'analytics', label: 'Analytics', Icon: BarChart2       },
+  { page: 'news',      label: 'News',      Icon: Newspaper       },
+  { page: 'accounts',  label: 'Accounts',  Icon: Wallet          },
+  { page: 'settings',  label: 'Settings',  Icon: Settings        },
 ]
 
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps) {
@@ -110,8 +113,8 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
                 borderRadius: 10,
                 border: 'none',
                 cursor: 'pointer',
-                background: active ? '#141414' : 'transparent',
-                color: active ? '#e0e0e0' : '#3a3a3a',
+                background: active ? '#1a1a1a' : 'transparent',
+                color: active ? '#ffffff' : '#3a3a3a',
                 fontSize: 15,
                 fontWeight: active ? 600 : 400,
                 transition: 'all 0.15s ease',

@@ -6,10 +6,10 @@ import { Journal } from './pages/Journal'
 import { useStore } from './store/useStore'
 import './index.css'
 
-function Strategies() {
+function Placeholder({ label }: { label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#444', fontSize: 14 }}>
-      Strategies — coming soon
+      {label} — coming soon
     </div>
   )
 }
@@ -36,14 +36,14 @@ function App() {
 
   const navigateToJournal = (date?: string) => {
     setJournalDate(date)
-    setPage('journal')
+    setPage('trades')
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0e0e0e]">
       <Sidebar
         page={page}
-        onNavigate={p => { setPage(p); if (p !== 'journal') setJournalDate(undefined) }}
+        onNavigate={p => { setPage(p); if (p !== 'trades') setJournalDate(undefined) }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(v => !v)}
       />
@@ -59,7 +59,7 @@ function App() {
             />
           </div>
         )}
-        {page === 'journal' && (
+        {page === 'trades' && (
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
             <Journal
               entries={journalEntries}
@@ -76,7 +76,10 @@ function App() {
             />
           </div>
         )}
-        {page === 'strategies' && <Strategies />}
+        {page === 'analytics' && <Placeholder label="Analytics" />}
+        {page === 'news'      && <Placeholder label="News"      />}
+        {page === 'accounts'  && <Placeholder label="Accounts"  />}
+        {page === 'settings'  && <Placeholder label="Settings"  />}
       </main>
     </div>
   )

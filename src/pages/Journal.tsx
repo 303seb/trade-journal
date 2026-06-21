@@ -424,6 +424,13 @@ function TradeCard({ trade, onUpdate, onRemove }: {
       {/* Auto-calculated P&L + R:R */}
       {(() => {
         const rrVal = calcTradeRR(trade.entryPrice, trade.takeProfit, trade.stopLoss)
+        const rrColor = (() => {
+          if (!rrVal) return '#2a2a2a'
+          const e = parseFloat(trade.entryPrice), tp = parseFloat(trade.takeProfit), sl = parseFloat(trade.stopLoss)
+          if (isNaN(e) || isNaN(tp) || isNaN(sl) || e === 0 || tp === 0 || sl === 0) return '#e0e0e0'
+          const positive = trade.side === 'Long' ? (tp > e && e > sl) : (tp < e && e < sl)
+          return positive ? '#4ade80' : '#f87171'
+        })()
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a' }}>
@@ -434,7 +441,7 @@ function TradeCard({ trade, onUpdate, onRemove }: {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a' }}>
               <span style={{ fontSize: 10, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>R:R</span>
-              <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: rrVal ? '#e0e0e0' : '#2a2a2a' }}>
+              <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: rrColor }}>
                 {rrVal ? `${rrVal}R` : '—'}
               </span>
             </div>

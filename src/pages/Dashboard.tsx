@@ -170,6 +170,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
         year={year}
         month={month}
         trades={allTrades}
+        journalEntries={journalEntries}
         onDayClick={date => {
           const entry = journalEntries.find(e => e.date === date)
           if (entry) setPopupDate(date)

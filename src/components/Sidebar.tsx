@@ -9,70 +9,147 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-const NAV_ITEMS: { page: Page; label: string; icon: React.ReactNode }[] = [
-  { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-  { page: 'journal', label: 'Journal', icon: <BookOpen size={18} /> },
-  { page: 'strategies', label: 'Strategies', icon: <BarChart2 size={18} /> },
+const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
+  { page: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
+  { page: 'journal',   label: 'Journal',   Icon: BookOpen        },
+  { page: 'strategies',label: 'Strategies',Icon: BarChart2       },
 ]
 
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps) {
   return (
     <aside
-      className="h-screen flex flex-col bg-[#0d0d0d] border-r border-[#1e1e1e] shrink-0 transition-all duration-200"
-      style={{ width: collapsed ? 60 : 200 }}
+      style={{
+        width: collapsed ? 52 : 210,
+        height: '100vh',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#090909',
+        borderRight: '1px solid #141414',
+        transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+        overflow: 'hidden',
+      }}
     >
-      {/* Logo */}
-      <div className={`flex items-center gap-2.5 px-3 h-16 border-b border-[#1e1e1e] ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-8 h-8 rounded-lg bg-[#1e1e1e] border border-[#333] flex items-center justify-center shrink-0">
-          <TrendingUp size={15} className="text-[#cccccc]" />
-        </div>
+      {/* Header row — collapse button lives here */}
+      <div
+        style={{
+          height: 54,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          borderBottom: '1px solid #141414',
+          padding: collapsed ? '0 10px' : '0 12px 0 14px',
+          gap: 10,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Logo icon (always visible) */}
         {!collapsed && (
-          <span className="text-sm font-bold text-[#f0f0f0] tracking-tight whitespace-nowrap">
-            TradeJournal
+          <div
+            style={{
+              width: 26, height: 26, borderRadius: 7,
+              background: '#161616', border: '1px solid #222',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <TrendingUp size={13} color="#777" />
+          </div>
+        )}
+
+        {/* Title */}
+        {!collapsed && (
+          <span
+            style={{
+              flex: 1, fontSize: 12, fontWeight: 600, color: '#888',
+              whiteSpace: 'nowrap', letterSpacing: '0.01em', minWidth: 0,
+            }}
+          >
+            The Market Element
           </span>
         )}
+
+        {/* Toggle arrow — always at top */}
+        <button
+          onClick={onToggle}
+          title={collapsed ? 'Expand' : 'Collapse'}
+          style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'transparent', border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#333', cursor: 'pointer', flexShrink: 0,
+            transition: 'color 0.15s, background 0.15s',
+            marginLeft: collapsed ? 'auto' : undefined,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.background = '#141414' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#333'; e.currentTarget.style.background = 'transparent' }}
+        >
+          {collapsed
+            ? <ChevronRight size={15} strokeWidth={1.8} />
+            : <ChevronLeft size={15} strokeWidth={1.8} />
+          }
+        </button>
       </div>
 
-      {/* Nav items */}
-      <nav className="flex-1 flex flex-col gap-1 p-2 pt-3">
-        {NAV_ITEMS.map(item => {
-          const active = page === item.page
+      {/* Nav */}
+      <nav style={{ flex: 1, padding: '10px 6px', display: 'flex', flexDirection: 'column', gap: 1, overflow: 'hidden' }}>
+        {NAV.map(({ page: p, label, Icon }) => {
+          const active = page === p
           return (
             <button
-              key={item.page}
-              onClick={() => onNavigate(item.page)}
-              title={collapsed ? item.label : undefined}
-              className={`
-                flex items-center gap-3 rounded-lg px-2.5 py-2.5 text-sm font-medium transition-all
-                ${active
-                  ? 'bg-[#1f1f1f] text-[#f0f0f0] border border-[#3a3a3a]'
-                  : 'text-[#666666] hover:text-[#cccccc] hover:bg-[#181818] border border-transparent'
+              key={p}
+              onClick={() => onNavigate(p)}
+              title={collapsed ? label : undefined}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: collapsed ? '11px 0' : '10px 12px',
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                borderRadius: 9,
+                border: 'none',
+                cursor: 'pointer',
+                background: active ? '#141414' : 'transparent',
+                color: active ? '#e0e0e0' : '#3a3a3a',
+                fontSize: 13,
+                fontWeight: active ? 500 : 400,
+                transition: 'all 0.15s ease',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              onMouseEnter={e => {
+                if (!active) {
+                  e.currentTarget.style.background = '#111'
+                  e.currentTarget.style.color = '#777'
                 }
-                ${collapsed ? 'justify-center' : ''}
-              `}
+              }}
+              onMouseLeave={e => {
+                if (!active) {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = '#3a3a3a'
+                }
+              }}
             >
-              <span className="shrink-0">{item.icon}</span>
-              {!collapsed && <span>{item.label}</span>}
+              {/* Active accent bar */}
+              {active && (
+                <div
+                  style={{
+                    position: 'absolute', left: 0, top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 2, height: 16, borderRadius: 2,
+                    background: '#f0f0f0',
+                  }}
+                />
+              )}
+              <Icon size={15} strokeWidth={1.8} />
+              {!collapsed && (
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>{label}</span>
+              )}
             </button>
           )
         })}
       </nav>
-
-      {/* Collapse toggle */}
-      <div className="p-2 border-t border-[#1e1e1e]">
-        <button
-          onClick={onToggle}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="w-full flex items-center justify-center gap-2 rounded-lg px-2.5 py-2 text-[#555] hover:text-[#999] hover:bg-[#181818] transition-colors text-xs"
-        >
-          {collapsed ? <ChevronRight size={15} /> : (
-            <>
-              <ChevronLeft size={15} />
-              <span>Collapse</span>
-            </>
-          )}
-        </button>
-      </div>
     </aside>
   )
 }

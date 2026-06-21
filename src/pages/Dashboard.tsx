@@ -3,6 +3,7 @@ import { NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity, Calend
 import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
 import { MonthCalendar } from '../components/MonthCalendar'
+import { DashboardCharts } from '../components/DashboardCharts'
 import {
   getDashTrades,
   getMonthTrades,
@@ -178,6 +179,13 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
         }}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
+      />
+
+      {/* Charts */}
+      <DashboardCharts
+        allTrades={allTrades}
+        monthTrades={monthTrades}
+        journalEntries={journalEntries}
       />
 
       {/* Recent Trades */}

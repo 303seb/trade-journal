@@ -24,10 +24,13 @@ export interface TradeLog {
   pnl: string              // auto-calculated from symbol/entry/exit/contracts
   drawdown: string         // points of drawdown — shown for Win / BE / Faded
   confluences: string[]
-  sessions: SessionType[]
+  sessions: string[]       // session tags (flexible strings)
   dol: string[]            // draw on liquidity tags
   htfImgKey?: string       // high timeframe screenshot (base64)
   execImgKey?: string      // execution screenshot (base64)
+  setup?: string           // setup description e.g. "5m FVG entry"
+  grade?: string           // trade grade: A+, A, B, C, D, F
+  time?: string            // trade time HH:MM
 }
 
 export interface TradingRule {

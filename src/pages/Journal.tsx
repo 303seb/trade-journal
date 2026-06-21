@@ -702,7 +702,7 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
   })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
 
       {/* Filter bar */}
       <div style={{ flexShrink: 0, padding: '12px 36px', borderBottom: '1px solid #111', display: 'flex', alignItems: 'center', gap: 10, background: '#070707' }}>

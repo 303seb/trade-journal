@@ -33,9 +33,29 @@ export interface TradeLog {
   htfImgKey?: string       // high timeframe screenshot (base64)
   execImgKey?: string      // execution screenshot (base64)
   setup?: string           // setup description e.g. "5m FVG entry"
-  grade?: string           // trade grade: A+, A, B, C, D, F
+  grade?: string           // trade grade: A+, A, B, C, D, F (auto-calculated)
   time?: string            // trade time HH:MM
   notes?: string           // post-trade reflections
+
+  // ICT / Trade Context
+  htfBias?: string                  // 'Long' | 'Short' | ''
+  internalRangeLiquidity?: string[] // e.g. ["FVG (5m)", "FVG (15m)"]
+  externalRangeLiquidity?: string[] // e.g. ["Swing High (Daily)"]
+  liquiditySwept?: string[]         // e.g. ["Swing Low (15m)"]
+  smtPresent?: string[]             // e.g. ["SMT (5m)"]
+  cisdPresent?: string[]            // e.g. ["CISD (15m)"]
+  displacement?: string             // 'Yes' | 'No' | ''
+  fvgPresent?: string[]             // e.g. ["FVG (5m)"]
+  ifvgPresent?: string[]            // e.g. ["iFVG (1m)"]
+  rejectionBlock?: string[]         // e.g. ["Rejection Block (15m)"]
+  entryModel?: string
+  setupType?: string
+  timeframeExecuted?: string        // e.g. "5m"
+  marketCondition?: string          // 'Consolidation' | 'Distribution' | ''
+  exitReason?: string[]             // ["Full TP", "Swept Internal High/Low", "SMT"]
+  newsPresent?: string              // 'Yes' | 'No' | ''
+  newsType?: string
+  screenshots?: string[]            // base64 encoded images (dynamic list)
 }
 
 export interface TradingRule {

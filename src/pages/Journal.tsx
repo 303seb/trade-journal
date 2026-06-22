@@ -34,6 +34,25 @@ function emptyTrade(): TradeLog {
     confluences: [], sessions: [], dol: [],
     htfImgKey: undefined, execImgKey: undefined,
     setup: '', grade: '', time: '', notes: '',
+    // ICT context
+    htfBias: '',
+    internalRangeLiquidity: [],
+    externalRangeLiquidity: [],
+    liquiditySwept: [],
+    smtPresent: [],
+    cisdPresent: [],
+    displacement: '',
+    fvgPresent: [],
+    ifvgPresent: [],
+    rejectionBlock: [],
+    entryModel: '',
+    setupType: '',
+    timeframeExecuted: '',
+    marketCondition: '',
+    exitReason: [],
+    newsPresent: '',
+    newsType: '',
+    screenshots: [],
   }
 }
 function safeEntry(raw: unknown, date: string): JournalEntry {
@@ -71,6 +90,34 @@ function calcRR(tp: string, sl: string): string {
   return (t / s).toFixed(2)
 }
 
+// ── Auto-grade ────────────────────────────────────────────────────────────────
+
+function calcSetupGrade(t: TradeLog): { grade: string; score: number } | null {
+  let score = 0
+  if (t.htfBias) score += 1
+  score += Math.min((t.dol || []).length, 3)
+  score += Math.min((t.internalRangeLiquidity || []).length, 2)
+  score += Math.min((t.externalRangeLiquidity || []).length, 2)
+  if ((t.liquiditySwept || []).length > 0) score += 1
+  if ((t.smtPresent || []).length > 0) score += 1
+  if ((t.cisdPresent || []).length > 0) score += 1
+  if (t.displacement === 'Yes') score += 1
+  if ((t.fvgPresent || []).length > 0) score += 1
+  if ((t.ifvgPresent || []).length > 0) score += 1
+  if ((t.rejectionBlock || []).length > 0) score += 1
+  if (t.timeframeExecuted) score += 1
+  score += Math.min((t.confluences || []).length, 3)
+  if (score === 0) return null
+  let grade: string
+  if (score >= 10) grade = 'A+'
+  else if (score >= 8) grade = 'A'
+  else if (score >= 6) grade = 'B'
+  else if (score >= 4) grade = 'C'
+  else if (score >= 2) grade = 'D'
+  else grade = 'F'
+  return { grade, score }
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const SYMBOLS = ['NQ', 'ES', 'GC', 'MNQ', 'MES', 'MGC']
@@ -104,6 +151,11 @@ const DOL_OPTIONS = [
   'Equal Highs', 'Equal Lows', 'HTF PD Array',
   'Previous Day High', 'Previous Day Low', 'Weekly High', 'Weekly Low', 'Daily Open',
 ]
+const MODAL_DOL_OPTIONS = [
+  'Asia High', 'Asia Low', 'London High', 'London Low',
+  'New York AM High', 'New York AM Low', 'New York PM High', 'New York PM Low',
+]
+const EXIT_REASONS = ['Full TP', 'Swept Internal High/Low', 'SMT']
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
@@ -115,12 +167,6 @@ const inputBase: React.CSSProperties = {
 }
 const fieldLabel = (text: string) => (
   <div style={{ fontSize: 11, color: '#444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7 }}>{text}</div>
-)
-const sectionDivider = (title: string) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0 20px' }}>
-    <span style={{ fontSize: 10, fontWeight: 700, color: '#333', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{title}</span>
-    <div style={{ flex: 1, height: 1, background: '#181818' }} />
-  </div>
 )
 
 // ── Screenshot Upload ─────────────────────────────────────────────────────────
@@ -152,12 +198,12 @@ function ScreenshotUpload({ label, preview, onFile, onClear }: {
           onClick={() => ref.current?.click()}
           onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handle(f) }}
           onDragOver={e => e.preventDefault()}
-          style={{ border: '2px dashed #1a1a1a', borderRadius: 8, padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, cursor: 'pointer', transition: 'border-color 0.15s' }}
+          style={{ border: '2px dashed #1a1a1a', borderRadius: 8, padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, cursor: 'pointer', transition: 'border-color 0.15s' }}
           onMouseEnter={e => (e.currentTarget.style.borderColor = '#333')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = '#1a1a1a')}
         >
           <ImageIcon size={14} color="#2a2a2a" />
-          <span style={{ fontSize: 10, color: '#2a2a2a' }}>Click or drag</span>
+          <span style={{ fontSize: 10, color: '#2a2a2a' }}>Click or drag image</span>
         </div>
       )}
       <input ref={ref} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handle(f) }} />
@@ -199,7 +245,7 @@ function TagChip({ label, active, onClick }: { label: string; active: boolean; o
   )
 }
 
-// ── Confluence Picker (shared between modal and inline form) ──────────────────
+// ── Confluence Picker ─────────────────────────────────────────────────────────
 
 function ConfluencePicker({ confluences, onChange }: {
   confluences: string[]
@@ -290,6 +336,91 @@ function ConfluencePicker({ confluences, onChange }: {
   )
 }
 
+// ── Timeframe Tag Picker (for ICT context fields) ─────────────────────────────
+
+function TFTagPicker({ bases, selected, onChange }: {
+  bases: string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [activePicker, setActivePicker] = useState<string | null>(null)
+
+  const toggle = (tag: string) => {
+    onChange(selected.includes(tag) ? selected.filter(t => t !== tag) : [...selected, tag])
+  }
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+          {selected.map(tag => (
+            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 11, background: '#1e1e1e', border: '1px solid #333', color: '#d0d0d0' }}>
+              {tag}
+              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#555', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+              ><X size={9} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: activePicker ? 8 : 0 }}>
+        {bases.map(base => {
+          const hasAny = selected.some(s => s.startsWith(`${base} (`))
+          const isOpen = activePicker === base
+          return (
+            <button key={base} onClick={() => setActivePicker(isOpen ? null : base)} style={{
+              padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+              border: `1px solid ${hasAny || isOpen ? '#3a3a3a' : '#1a1a1a'}`,
+              background: hasAny || isOpen ? '#1e1e1e' : 'transparent',
+              color: hasAny || isOpen ? '#d0d0d0' : '#3a3a3a',
+              cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+            }}
+              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
+              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+            >{base}</button>
+          )
+        })}
+      </div>
+      {activePicker && (
+        <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a' }}>
+          <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {TIMEFRAMES.map(tf => {
+              const combo = `${activePicker} (${tf})`
+              const sel = selected.includes(combo)
+              return (
+                <button key={tf} onClick={() => toggle(combo)} style={{
+                  padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                  border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                  background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+                  color: sel ? '#4ade80' : '#3a3a3a',
+                  cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                }}>{tf}</button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Collapsible Section Header ────────────────────────────────────────────────
+
+function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} style={{
+      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+      background: 'none', border: 'none', cursor: 'pointer', padding: '22px 0 0', margin: 0,
+    }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: open ? '#555' : '#333', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>{title}</span>
+      <div style={{ flex: 1, height: 1, background: '#181818' }} />
+      <ChevronDown size={12} color="#333" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
+    </button>
+  )
+}
+
 // ── New Trade Modal ───────────────────────────────────────────────────────────
 
 function NewTradeModal({ initialDate, onSave, onClose }: {
@@ -300,14 +431,16 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
   const [trade, setTrade] = useState<TradeLog>(() => emptyTrade())
   const [date, setDate] = useState(initialDate)
   const [saved, setSaved] = useState(false)
-  const [htfPreview, setHtfPreview] = useState<string | null>(null)
-  const [execPreview, setExecPreview] = useState<string | null>(null)
+  const [openSec, setOpenSec] = useState([true, true, true])
+  const [screenshots, setScreenshots] = useState<string[]>([''])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+
+  const toggleSec = (i: number) => setOpenSec(prev => prev.map((v, j) => j === i ? !v : v))
 
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     setTrade(prev => {
@@ -318,20 +451,12 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
     })
   }
 
-  const toggleAccount = (a: AccountType) => {
-    const l = trade.accounts || []
-    set('accounts', l.includes(a) ? l.filter(x => x !== a) : [...l, a])
-  }
-  const toggleSession = (s: string) => {
-    const l = trade.sessions || []
-    set('sessions', l.includes(s) ? l.filter(x => x !== s) : [...l, s])
-  }
-  const toggleDol = (d: string) => {
-    const l = trade.dol || []
-    set('dol', l.includes(d) ? l.filter(x => x !== d) : [...l, d])
+  const toggleArr = (k: keyof TradeLog, val: string) => {
+    const arr = (trade[k] as string[]) || []
+    set(k, (arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]) as TradeLog[typeof k])
   }
 
-  // Auto-calculated
+  // Auto-calculated P&L
   const grossPnl = parseFloat(trade.pnl) || 0
   const feesVal = parseFloat(trade.fees || '0') || 0
   const netPnl = grossPnl - feesVal
@@ -346,8 +471,17 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
   const netColor = netPnl > 0 ? '#4ade80' : netPnl < 0 ? '#f87171' : '#555'
   const rColor = rMultiple === null ? '#555' : rMultiple >= 1 ? '#4ade80' : '#f87171'
 
+  // Auto-grade
+  const autoGradeResult = calcSetupGrade(trade)
+  const autoGradeColor = autoGradeResult ? (GRADE_COLORS[autoGradeResult.grade] || '#888') : '#252525'
+
   function handleSave() {
-    onSave(trade, date)
+    const finalTrade = {
+      ...trade,
+      grade: autoGradeResult?.grade || '',
+      screenshots: screenshots.filter(s => s !== ''),
+    }
+    onSave(finalTrade, date)
     setSaved(true)
     setTimeout(() => onClose(), 700)
   }
@@ -359,7 +493,7 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
     >
       <div style={{ background: '#090909', border: '1px solid #1a1a1a', borderRadius: 16, width: '100%', maxWidth: 920, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)' }}>
 
-        {/* Modal header */}
+        {/* Header */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #141414' }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#e0e0e0', flex: 1 }}>New Trade</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2a2a2a', display: 'flex', padding: 4, borderRadius: 6, transition: 'color 0.15s' }}
@@ -369,140 +503,139 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
         </div>
 
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 28px 24px' }}>
 
           {/* ── SECTION 1: BASIC TRADE DETAILS ── */}
-          {sectionDivider('Basic Trade Details')}
+          <SectionHeader title="Basic Trade Details" open={openSec[0]} onToggle={() => toggleSec(0)} />
+          {openSec[0] && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 20, paddingBottom: 8 }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-            {/* Row 1: Date · Time · Symbol · Account */}
-            <div style={{ display: 'grid', gridTemplateColumns: '140px 110px 120px 1fr', gap: 14 }}>
-              <div>
-                {fieldLabel('Date')}
-                <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                  style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Time')}
-                <input type="time" value={trade.time || ''} onChange={e => set('time', e.target.value)}
-                  style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Symbol')}
-                <select value={trade.symbol} onChange={e => set('symbol', e.target.value)}
-                  style={{ ...inputBase, cursor: 'pointer' }} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')}>
-                  <option value="">—</option>
-                  {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                {fieldLabel('Account')}
-                <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                  {ACCOUNT_OPTIONS.map(a => {
-                    const active = (trade.accounts || []).includes(a.value)
-                    return (
-                      <button key={a.value} onClick={() => toggleAccount(a.value)} style={{
-                        flex: 1, borderRadius: 8, fontSize: 11, fontWeight: 500,
-                        border: `1px solid ${active ? '#3a3a3a' : '#1a1a1a'}`,
-                        background: active ? '#1e1e1e' : 'transparent',
-                        color: active ? '#e0e0e0' : '#3a3a3a',
-                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                      }}
-                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
-                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
-                      >{a.label}</button>
-                    )
-                  })}
+              {/* Row 1: Date · Time · Symbol · Account */}
+              <div style={{ display: 'grid', gridTemplateColumns: '140px 110px 120px 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Date')}
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                    style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Time')}
+                  <input type="time" value={trade.time || ''} onChange={e => set('time', e.target.value)}
+                    style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Symbol')}
+                  <select value={trade.symbol} onChange={e => set('symbol', e.target.value)}
+                    style={{ ...inputBase, cursor: 'pointer' }} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')}>
+                    <option value="">—</option>
+                    {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {fieldLabel('Account')}
+                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
+                    {ACCOUNT_OPTIONS.map(a => {
+                      const active = (trade.accounts || []).includes(a.value)
+                      return (
+                        <button key={a.value} onClick={() => toggleArr('accounts', a.value)} style={{
+                          flex: 1, borderRadius: 8, fontSize: 11, fontWeight: 500,
+                          border: `1px solid ${active ? '#3a3a3a' : '#1a1a1a'}`,
+                          background: active ? '#1e1e1e' : 'transparent',
+                          color: active ? '#e0e0e0' : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{a.label}</button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Row 2: Direction · Contracts · Fees · Duration */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
-              <div>
-                {fieldLabel('Direction')}
-                <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                  {(['Long', 'Short'] as const).map(side => {
-                    const active = trade.side === side
-                    const col = side === 'Long' ? '#22d3ee' : '#f87171'
-                    return (
-                      <button key={side} onClick={() => set('side', side)} style={{
-                        flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
-                        border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
-                        background: active ? `${col}14` : 'transparent',
-                        color: active ? col : '#3a3a3a',
-                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                      }}
-                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
-                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
-                      >{side}</button>
-                    )
-                  })}
+              {/* Row 2: Direction · Contracts · Fees · Duration */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Direction')}
+                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
+                    {(['Long', 'Short'] as const).map(side => {
+                      const active = trade.side === side
+                      const col = side === 'Long' ? '#22d3ee' : '#f87171'
+                      return (
+                        <button key={side} onClick={() => set('side', side)} style={{
+                          flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
+                          background: active ? `${col}14` : 'transparent',
+                          color: active ? col : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{side}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div>
+                  {fieldLabel('Contracts')}
+                  <input type="number" value={trade.contracts} onChange={e => set('contracts', e.target.value)}
+                    placeholder="1" min="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Fees ($)')}
+                  <input type="number" value={trade.fees} onChange={e => set('fees', e.target.value)}
+                    placeholder="0.00" min="0" step="0.01" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Duration')}
+                  <input value={trade.duration} onChange={e => set('duration', e.target.value)}
+                    placeholder="e.g. 45m, 2h" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
                 </div>
               </div>
-              <div>
-                {fieldLabel('Contracts')}
-                <input type="number" value={trade.contracts} onChange={e => set('contracts', e.target.value)}
-                  placeholder="1" min="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Fees ($)')}
-                <input type="number" value={trade.fees} onChange={e => set('fees', e.target.value)}
-                  placeholder="0.00" min="0" step="0.01" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Duration')}
-                <input value={trade.duration} onChange={e => set('duration', e.target.value)}
-                  placeholder="e.g. 45m, 2h" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-            </div>
 
-            {/* Row 3: Entry · Exit · Target Price · Trade # */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
-              <div>
-                {fieldLabel('Entry Price')}
-                <input type="number" value={trade.entryPrice} onChange={e => set('entryPrice', e.target.value)}
-                  placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+              {/* Row 3: Entry · Exit · Target Price · Trade # */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Entry Price')}
+                  <input type="number" value={trade.entryPrice} onChange={e => set('entryPrice', e.target.value)}
+                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Exit Price')}
+                  <input type="number" value={trade.exitPrice} onChange={e => set('exitPrice', e.target.value)}
+                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Target Price')}
+                  <input type="number" value={trade.targetPrice} onChange={e => set('targetPrice', e.target.value)}
+                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Trade # (today)')}
+                  <input type="number" value={trade.tradeNumber} onChange={e => set('tradeNumber', e.target.value)}
+                    placeholder="1" min="1" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
               </div>
-              <div>
-                {fieldLabel('Exit Price')}
-                <input type="number" value={trade.exitPrice} onChange={e => set('exitPrice', e.target.value)}
-                  placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Target Price')}
-                <input type="number" value={trade.targetPrice} onChange={e => set('targetPrice', e.target.value)}
-                  placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Trade # (today)')}
-                <input type="number" value={trade.tradeNumber} onChange={e => set('tradeNumber', e.target.value)}
-                  placeholder="1" min="1" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-            </div>
 
-            {/* Row 4: TP · SL · Drawdown */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-              <div>
-                {fieldLabel('Take Profit (pts)')}
-                <input type="number" value={trade.takeProfit} onChange={e => set('takeProfit', e.target.value)}
-                  placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+              {/* Row 4: TP · SL · Drawdown */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Take Profit (pts)')}
+                  <input type="number" value={trade.takeProfit} onChange={e => set('takeProfit', e.target.value)}
+                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Stop Loss (pts)')}
+                  <input type="number" value={trade.stopLoss} onChange={e => set('stopLoss', e.target.value)}
+                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
+                <div>
+                  {fieldLabel('Drawdown (pts)')}
+                  <input type="number" value={trade.drawdown} onChange={e => set('drawdown', e.target.value)}
+                    placeholder="0" min="0" step="0.25" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
+                </div>
               </div>
-              <div>
-                {fieldLabel('Stop Loss (pts)')}
-                <input type="number" value={trade.stopLoss} onChange={e => set('stopLoss', e.target.value)}
-                  placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-              <div>
-                {fieldLabel('Drawdown (pts)')}
-                <input type="number" value={trade.drawdown} onChange={e => set('drawdown', e.target.value)}
-                  placeholder="0" min="0" step="0.25" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-              </div>
-            </div>
 
-            {/* Row 5: Result · Grade */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {/* Row 5: Result */}
               <div>
                 {fieldLabel('Result')}
                 <div style={{ display: 'flex', gap: 5 }}>
@@ -512,108 +645,340 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
                   ))}
                 </div>
               </div>
+
+              {/* Row 6: Session */}
               <div>
-                {fieldLabel('Setup Grade')}
-                <div style={{ display: 'flex', gap: 5 }}>
-                  {GRADES.map(g => {
-                    const col = GRADE_COLORS[g]
-                    return (
-                      <PillBtn key={g} label={g} active={trade.grade === g}
-                        onClick={() => set('grade', trade.grade === g ? '' : g)} activeColor={col} activeBg={`${col}18`} />
-                    )
-                  })}
+                {fieldLabel('Session')}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {SESSION_OPTIONS.map(s => (
+                    <TagChip key={s.value} label={s.label} active={(trade.sessions || []).includes(s.value)} onClick={() => toggleArr('sessions', s.value)} />
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* Row 6: Session */}
-            <div>
-              {fieldLabel('Session')}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {SESSION_OPTIONS.map(s => (
-                  <TagChip key={s.value} label={s.label} active={trade.sessions.includes(s.value)} onClick={() => toggleSession(s.value)} />
-                ))}
+              {/* Auto-Calculated subsection */}
+              <div style={{ background: '#0b0b0b', border: '1px solid #1a1a1a', borderRadius: 12, padding: '16px 20px', marginTop: 4 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#252525', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Auto-Calculated</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderLeft: '1px solid #1a1a1a' }}>
+                  {[
+                    { label: 'Gross P&L', value: hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—', color: hasPnl ? grossColor : '#252525' },
+                    { label: 'Net P&L',   value: hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—',   color: hasPnl ? netColor : '#252525' },
+                    { label: 'R Multiple', value: rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—', color: rMultiple !== null ? rColor : '#252525' },
+                  ].map(item => (
+                    <div key={item.label} style={{ padding: '0 20px', borderRight: '1px solid #1a1a1a' }}>
+                      <div style={{ fontSize: 10, color: '#2a2a2a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{item.label}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: item.color, letterSpacing: '-0.02em' }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* Auto-Calculated subsection */}
-            <div style={{ background: '#0b0b0b', border: '1px solid #1a1a1a', borderRadius: 12, padding: '16px 20px', marginTop: 4 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#252525', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Auto-Calculated</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderLeft: '1px solid #1a1a1a' }}>
-                {[
-                  { label: 'Gross P&L', value: hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—', color: hasPnl ? grossColor : '#252525' },
-                  { label: 'Net P&L', value: hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—', color: hasPnl ? netColor : '#252525' },
-                  { label: 'R Multiple', value: rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—', color: rMultiple !== null ? rColor : '#252525' },
-                ].map(item => (
-                  <div key={item.label} style={{ padding: '0 20px', borderRight: '1px solid #1a1a1a' }}>
-                    <div style={{ fontSize: 10, color: '#2a2a2a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{item.label}</div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: item.color, letterSpacing: '-0.02em' }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
             </div>
-
-          </div>
+          )}
 
           {/* ── SECTION 2: ICT / TRADE CONTEXT ── */}
-          {sectionDivider('ICT / Trade Context')}
+          <SectionHeader title="ICT / Trade Context" open={openSec[1]} onToggle={() => toggleSec(1)} />
+          {openSec[1] && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 20, paddingBottom: 8 }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div>
-              {fieldLabel('Setup Description')}
-              <input value={trade.setup || ''} onChange={e => set('setup', e.target.value)}
-                placeholder="5m FVG entry, OB retest, premium PD array…" style={inputBase}
-                onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
-            </div>
-
-            <div>
-              {fieldLabel('Confluences')}
-              <ConfluencePicker confluences={trade.confluences} onChange={v => set('confluences', v)} />
-            </div>
-
-            <div>
-              {fieldLabel('Draw on Liquidity')}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {DOL_OPTIONS.map(d => (
-                  <TagChip key={d} label={d} active={(trade.dol || []).includes(d)} onClick={() => toggleDol(d)} />
-                ))}
+              {/* HTF Bias + Market Condition */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('HTF Bias')}
+                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
+                    {(['Long', 'Short'] as const).map(side => {
+                      const active = trade.htfBias === side
+                      const col = side === 'Long' ? '#22d3ee' : '#f87171'
+                      return (
+                        <button key={side} onClick={() => set('htfBias', active ? '' : side)} style={{
+                          flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
+                          background: active ? `${col}14` : 'transparent',
+                          color: active ? col : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{side}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div>
+                  {fieldLabel('Market Condition')}
+                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
+                    {(['Consolidation', 'Distribution'] as const).map(mc => {
+                      const active = trade.marketCondition === mc
+                      return (
+                        <button key={mc} onClick={() => set('marketCondition', active ? '' : mc)} style={{
+                          flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${active ? '#4a4a4a' : '#1e1e1e'}`,
+                          background: active ? '#1e1e1e' : 'transparent',
+                          color: active ? '#e0e0e0' : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{mc}</button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
+
+              {/* Draw on Liquidity */}
+              <div>
+                {fieldLabel('Draw on Liquidity')}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                  {MODAL_DOL_OPTIONS.map(d => (
+                    <TagChip key={d} label={d} active={(trade.dol || []).includes(d)} onClick={() => toggleArr('dol', d)} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Internal Range Liquidity */}
+              <div>
+                {fieldLabel('Internal Range Liquidity')}
+                <TFTagPicker bases={['FVG']} selected={trade.internalRangeLiquidity || []} onChange={v => set('internalRangeLiquidity', v)} />
+              </div>
+
+              {/* External Range Liquidity */}
+              <div>
+                {fieldLabel('External Range Liquidity')}
+                <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.externalRangeLiquidity || []} onChange={v => set('externalRangeLiquidity', v)} />
+              </div>
+
+              {/* Liquidity Swept */}
+              <div>
+                {fieldLabel('Liquidity Swept')}
+                <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.liquiditySwept || []} onChange={v => set('liquiditySwept', v)} />
+              </div>
+
+              {/* SMT + CISD + Displacement */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('SMT Present')}
+                  <TFTagPicker bases={['SMT']} selected={trade.smtPresent || []} onChange={v => set('smtPresent', v)} />
+                </div>
+                <div>
+                  {fieldLabel('CISD Present')}
+                  <TFTagPicker bases={['CISD']} selected={trade.cisdPresent || []} onChange={v => set('cisdPresent', v)} />
+                </div>
+                <div>
+                  {fieldLabel('Displacement')}
+                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
+                    {(['Yes', 'No'] as const).map(opt => {
+                      const active = trade.displacement === opt
+                      const col = opt === 'Yes' ? '#4ade80' : '#f87171'
+                      return (
+                        <button key={opt} onClick={() => set('displacement', active ? '' : opt)} style={{
+                          flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
+                          background: active ? `${col}14` : 'transparent',
+                          color: active ? col : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{opt}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* FVG Present + iFVG Present + Rejection Block */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('FVG Present')}
+                  <TFTagPicker bases={['FVG']} selected={trade.fvgPresent || []} onChange={v => set('fvgPresent', v)} />
+                </div>
+                <div>
+                  {fieldLabel('iFVG Present')}
+                  <TFTagPicker bases={['iFVG']} selected={trade.ifvgPresent || []} onChange={v => set('ifvgPresent', v)} />
+                </div>
+                <div>
+                  {fieldLabel('Rejection Block')}
+                  <TFTagPicker bases={['RB']} selected={trade.rejectionBlock || []} onChange={v => set('rejectionBlock', v)} />
+                </div>
+              </div>
+
+              {/* Timeframe Executed + Exit Reason */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Timeframe Executed On')}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {TIMEFRAMES.map(tf => {
+                      const active = trade.timeframeExecuted === tf
+                      return (
+                        <button key={tf} onClick={() => set('timeframeExecuted', active ? '' : tf)} style={{
+                          padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                          border: `1px solid ${active ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                          background: active ? 'rgba(74,222,128,0.1)' : 'transparent',
+                          color: active ? '#4ade80' : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
+                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+                        >{tf}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div>
+                  {fieldLabel('Exit Reason')}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                    {EXIT_REASONS.map(r => {
+                      const active = (trade.exitReason || []).includes(r)
+                      return (
+                        <button key={r} onClick={() => toggleArr('exitReason', r)} style={{
+                          padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                          border: `1px solid ${active ? '#3a3a3a' : '#1a1a1a'}`,
+                          background: active ? '#1e1e1e' : 'transparent',
+                          color: active ? '#d0d0d0' : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
+                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+                        >{r}</button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* News Present */}
+              <div>
+                {fieldLabel('News Present')}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    {(['Yes', 'No'] as const).map(opt => {
+                      const active = trade.newsPresent === opt
+                      const col = opt === 'Yes' ? '#fbbf24' : '#888'
+                      return (
+                        <button key={opt} onClick={() => set('newsPresent', active ? '' : opt)} style={{
+                          padding: '6px 18px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
+                          background: active ? `${col}14` : 'transparent',
+                          color: active ? col : '#3a3a3a',
+                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                        }}
+                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
+                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+                        >{opt}</button>
+                      )
+                    })}
+                  </div>
+                  {trade.newsPresent === 'Yes' && (
+                    <input
+                      value={trade.newsType || ''}
+                      onChange={e => set('newsType', e.target.value)}
+                      placeholder="News event / type…"
+                      style={{ ...inputBase, flex: 1, minWidth: 160 }}
+                      onFocus={e => (e.target.style.borderColor = '#333')}
+                      onBlur={e => (e.target.style.borderColor = '#1e1e1e')}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Confluences */}
+              <div>
+                {fieldLabel('Confluences')}
+                <ConfluencePicker confluences={trade.confluences} onChange={v => set('confluences', v)} />
+              </div>
+
+              {/* Auto-Grade subsection */}
+              <div style={{ background: '#0b0b0b', border: '1px solid #1a1a1a', borderRadius: 12, padding: '16px 20px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#252525', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Setup Grade — Auto Calculated</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                  <div style={{ fontSize: 48, fontWeight: 800, color: autoGradeColor, letterSpacing: '-0.03em', lineHeight: 1, minWidth: 60 }}>
+                    {autoGradeResult?.grade ?? '—'}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>
+                      {autoGradeResult
+                        ? `${autoGradeResult.score} signal${autoGradeResult.score !== 1 ? 's' : ''} detected`
+                        : 'Fill in ICT context fields to generate a grade'}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#2a2a2a' }}>
+                      HTF bias · DOL · Liquidity · Structure · Confluences · Execution
+                    </div>
+                  </div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                    {GRADES.map(g => (
+                      <div key={g} style={{
+                        width: 30, height: 30, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700,
+                        background: autoGradeResult?.grade === g ? `${GRADE_COLORS[g]}20` : 'transparent',
+                        border: `1px solid ${autoGradeResult?.grade === g ? GRADE_COLORS[g] + '55' : '#1a1a1a'}`,
+                        color: autoGradeResult?.grade === g ? GRADE_COLORS[g] : '#222',
+                        transition: 'all 0.2s',
+                      }}>{g}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
             </div>
-          </div>
+          )}
 
           {/* ── SECTION 3: SCREENSHOTS & NOTES ── */}
-          {sectionDivider('Screenshots & Notes')}
+          <SectionHeader title="Screenshots & Notes" open={openSec[2]} onToggle={() => toggleSec(2)} />
+          {openSec[2] && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 20, paddingBottom: 8 }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              <ScreenshotUpload label="HTF Chart" preview={htfPreview}
-                onFile={url => { setHtfPreview(url); set('htfImgKey', url) }}
-                onClear={() => { setHtfPreview(null); set('htfImgKey', undefined) }}
-              />
-              <ScreenshotUpload label="Execution Chart" preview={execPreview}
-                onFile={url => { setExecPreview(url); set('execImgKey', url) }}
-                onClear={() => { setExecPreview(null); set('execImgKey', undefined) }}
-              />
-            </div>
-            <div>
-              {fieldLabel('Notes')}
-              <textarea
-                value={trade.notes || ''}
-                onChange={e => set('notes', e.target.value)}
-                placeholder="Post-trade reflections, what went well, what to improve…"
-                rows={4}
-                style={{ ...inputBase, resize: 'vertical', lineHeight: 1.6 }}
-                onFocus={e => (e.target.style.borderColor = '#333')}
-                onBlur={e => (e.target.style.borderColor = '#1e1e1e')}
-              />
-            </div>
-          </div>
+              {/* Dynamic screenshots */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {screenshots.map((src, idx) => (
+                  <ScreenshotUpload
+                    key={idx}
+                    label={screenshots.length > 1 ? `Screenshot ${idx + 1}` : 'Screenshot'}
+                    preview={src || null}
+                    onFile={url => setScreenshots(prev => prev.map((s, i) => i === idx ? url : s))}
+                    onClear={() => {
+                      if (screenshots.length === 1) {
+                        setScreenshots([''])
+                      } else {
+                        setScreenshots(prev => prev.filter((_, i) => i !== idx))
+                      }
+                    }}
+                  />
+                ))}
+                <button
+                  onClick={() => setScreenshots(prev => [...prev, ''])}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+                    background: 'transparent', border: '1px dashed #1e1e1e', borderRadius: 8,
+                    color: '#3a3a3a', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    transition: 'all 0.15s', fontFamily: 'inherit', alignSelf: 'flex-start',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#888'; e.currentTarget.style.borderColor = '#333' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1e1e1e' }}
+                ><Plus size={12} /> Add Screenshot</button>
+              </div>
 
-          {/* Bottom padding so last field isn't flush against footer */}
+              {/* Notes */}
+              <div>
+                {fieldLabel('Notes')}
+                <textarea
+                  value={trade.notes || ''}
+                  onChange={e => set('notes', e.target.value)}
+                  placeholder="Post-trade reflections, what went well, what to improve…"
+                  rows={4}
+                  style={{ ...inputBase, resize: 'vertical', lineHeight: 1.6 }}
+                  onFocus={e => (e.target.style.borderColor = '#333')}
+                  onBlur={e => (e.target.style.borderColor = '#1e1e1e')}
+                />
+              </div>
+
+            </div>
+          )}
+
           <div style={{ height: 8 }} />
         </div>
 
-        {/* Modal footer */}
+        {/* Footer */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '14px 24px', borderTop: '1px solid #141414', background: '#080808' }}>
           <button onClick={onClose}
             style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
@@ -683,14 +1048,12 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
 
         {/* ── Top controls row ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Result */}
           <div style={{ display: 'flex', gap: 5, flex: '0 0 auto' }}>
             {RESULTS.map(r => (
               <PillBtn key={r.value} label={r.label} active={trade.result === r.value}
                 onClick={() => set('result', r.value)} activeColor={r.color} activeBg={r.bg} />
             ))}
           </div>
-          {/* Grade */}
           <div style={{ display: 'flex', gap: 5, flex: '0 0 auto' }}>
             {GRADES.map(g => {
               const col = GRADE_COLORS[g]
@@ -803,7 +1166,6 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
                 placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = '#333')} onBlur={e => (e.target.style.borderColor = '#1e1e1e')} />
             </div>
           ))}
-          {/* Calc P&L */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {fieldLabel('Calc P&L')}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0d0d', borderRadius: 8, border: '1px solid #1a1a1a', padding: '0 10px' }}>
@@ -812,16 +1174,14 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               </span>
             </div>
           </div>
-          {/* R:R */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {fieldLabel('R:R')}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0d0d', borderRadius: 8, border: '1px solid #1a1a1a', padding: '0 10px' }}>
               <span style={{ fontSize: 17, fontWeight: 700, color: rrColor }}>
-                {rrVal ? `${rrVal}R` : '—'}
+                {rrVal ? `${parseFloat(rrVal) >= 0 ? '+' : ''}${rrVal}R` : '—'}
               </span>
             </div>
           </div>
-          {/* Drawdown */}
           {showDrawdown && (
             <div>
               {fieldLabel('Drawdown (pts)')}
@@ -837,7 +1197,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             {fieldLabel('Session')}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {SESSION_OPTIONS.map(s => (
-                <TagChip key={s.value} label={s.label} active={trade.sessions.includes(s.value)} onClick={() => toggleSession(s.value)} />
+                <TagChip key={s.value} label={s.label} active={(trade.sessions || []).includes(s.value)} onClick={() => toggleSession(s.value)} />
               ))}
             </div>
           </div>
@@ -966,7 +1326,6 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
   const [showNewModal, setShowNewModal] = useState(false)
   const [modalInitialDate, setModalInitialDate] = useState(todayStr())
 
-  // expandedKey for existing trade inline edit
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const [buffer, setBuffer] = useState<TradeLog | null>(null)
   const [bufferDate, setBufferDate] = useState(todayStr())
@@ -1074,7 +1433,6 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
 
-      {/* New Trade Modal */}
       {showNewModal && (
         <NewTradeModal
           initialDate={modalInitialDate}

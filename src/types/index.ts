@@ -119,6 +119,14 @@ export interface MonthlyGoal {
   month: string            // YYYY-MM
 }
 
+export type DiaryEntries = Record<string, string> // date (YYYY-MM-DD) → diary text
+
+export interface AppSettings {
+  timezone: string         // e.g. "America/New_York"
+  darkMode: boolean
+  dailyReminder: boolean
+}
+
 export interface DashTrade {
   id: string
   date: string

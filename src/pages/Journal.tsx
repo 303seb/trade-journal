@@ -251,91 +251,144 @@ function TagChip({ label, active, onClick }: { label: string; active: boolean; o
   )
 }
 
-// ── Confluence Picker ─────────────────────────────────────────────────────────
+// ── Confluence Wizard (step-through) ─────────────────────────────────────────
 
-function ConfluencePicker({ confluences, onChange }: {
+function ConfluenceWizard({ confluences, onChange }: {
   confluences: string[]
   onChange: (next: string[]) => void
 }) {
-  const [activePicker, setActivePicker] = useState<string | null>(null)
+  const [step, setStep] = useState<number | null>(null)
+
+  const STEPS = CONFLUENCE_BASES
+  const total = STEPS.length
 
   const toggle = (tag: string) => {
     onChange(confluences.includes(tag) ? confluences.filter(t => t !== tag) : [...confluences, tag])
   }
 
+  // Collapsed view
+  if (step === null) {
+    return (
+      <div>
+        {confluences.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+            {confluences.map(tag => (
+              <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
+                {tag}
+                <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                ><X size={9} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={() => setStep(0)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
+            borderRadius: 8, border: '1px dashed #222', background: 'transparent',
+            color: '#555', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+            transition: 'all 0.15s', fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = '#3a3a3a' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#222' }}
+        >
+          {confluences.length > 0 ? '✏ Edit Confluences' : '+ Add Confluences'}
+        </button>
+      </div>
+    )
+  }
+
+  // Wizard step view
+  const current = STEPS[step]
+  const pct = Math.round(((step + 1) / total) * 100)
+
   return (
-    <div>
-      {confluences.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-          {confluences.map(tag => (
-            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
-              {tag}
-              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
-              ><X size={9} /></button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: activePicker ? 8 : 0 }}>
-        {CONFLUENCE_BASES.map(base => {
-          const hasAny = confluences.some(c => c.startsWith(`${base} (`))
-          const isOpen = activePicker === base
+    <div style={{ background: '#0e0e0e', border: '1px solid #1e1e1e', borderRadius: 12, padding: '14px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+      {/* Step header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#d0d0d0' }}>{current}</span>
+        <span style={{ fontSize: 11, color: '#444', fontWeight: 600 }}>{step + 1} / {total}</span>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 2, background: '#1a1a1a', borderRadius: 999, marginBottom: 12, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: '#4ade80', borderRadius: 999, transition: 'width 0.3s ease' }} />
+      </div>
+
+      {/* Timeframe options */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+        {TIMEFRAMES.map(tf => {
+          const combo = `${current} (${tf})`
+          const sel = confluences.includes(combo)
           return (
-            <button key={base} onClick={() => setActivePicker(isOpen ? null : base)} style={{
-              padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-              border: `1px solid ${hasAny || isOpen ? '#4a4a4a' : '#222'}`,
-              background: hasAny || isOpen ? '#252525' : 'transparent',
-              color: hasAny || isOpen ? '#f0f0f0' : '#666',
+            <button key={tf} onClick={() => toggle(combo)} style={{
+              padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+              background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+              color: sel ? '#4ade80' : '#666',
               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-            }}
-              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
-              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
-            >{base}</button>
+            }}>{tf}</button>
+          )
+        })}
+        {current === 'STDV' && STDV_LEVELS.map(lv => {
+          const tag = `STDV ${lv}σ`
+          const sel = confluences.includes(tag)
+          return (
+            <button key={lv} onClick={() => toggle(tag)} style={{
+              padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+              background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+              color: sel ? '#4ade80' : '#666',
+              cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+            }}>{lv}σ</button>
           )
         })}
       </div>
-      {activePicker && (
-        <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{activePicker} — Timeframe</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {TIMEFRAMES.map(tf => {
-                const combo = `${activePicker} (${tf})`
-                const sel = confluences.includes(combo)
-                return (
-                  <button key={tf} onClick={() => toggle(combo)} style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
-                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : '#666',
-                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                  }}>{tf}</button>
-                )
-              })}
-            </div>
+
+      {/* Nav */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          onClick={() => { if (step === 0) setStep(null); else setStep(s => (s ?? 1) - 1) }}
+          style={{ padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = '#2a2a2a' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#1e1e1e' }}
+        >{step === 0 ? '✕ Close' : '← Back'}</button>
+        <div style={{ flex: 1 }} />
+        {step < total - 1 ? (
+          <>
+            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#aaa' }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#555' }}
+            >Skip</button>
+            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: 'none', background: '#f0f0f0', color: '#111', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#f0f0f0' }}
+            >Next →</button>
+          </>
+        ) : (
+          <button onClick={() => setStep(null)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.08)', color: '#4ade80', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+            Done ✓
+          </button>
+        )}
+      </div>
+
+      {/* Selected summary at bottom */}
+      {confluences.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #141414' }}>
+          <div style={{ fontSize: 10, color: '#3a3a3a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Selected</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {confluences.map(tag => (
+              <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 6px 2px 8px', borderRadius: 999, fontSize: 11, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#ccc' }}>
+                {tag}
+                <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#555', display: 'flex', lineHeight: 1 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                ><X size={8} /></button>
+              </span>
+            ))}
           </div>
-          {activePicker === 'STDV' && (
-            <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 8 }}>
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>STDV Level</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {STDV_LEVELS.map(lv => {
-                  const tag = `STDV ${lv}σ`
-                  const sel = confluences.includes(tag)
-                  return (
-                    <button key={lv} onClick={() => toggle(tag)} style={{
-                      padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-                      border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
-                      background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                      color: sel ? '#4ade80' : '#666',
-                      cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                    }}>{lv}σ</button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1325,7 +1378,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
           </div>
           <div>
             {fieldLabel('Confluences')}
-            <ConfluencePicker confluences={trade.confluences} onChange={v => set('confluences', v)} />
+            <ConfluenceWizard confluences={trade.confluences} onChange={v => set('confluences', v)} />
           </div>
           <div>
             {fieldLabel('Draw on Liquidity')}

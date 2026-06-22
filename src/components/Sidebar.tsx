@@ -1,6 +1,6 @@
-import { LayoutDashboard, ClipboardList, TrendingUp, BarChart2, Newspaper, Wallet, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, TrendingUp, BarChart2, Newspaper, Wallet, Settings, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
 
-export type Page = 'dashboard' | 'trades' | 'analytics' | 'news' | 'accounts' | 'settings'
+export type Page = 'dashboard' | 'trades' | 'analytics' | 'news' | 'accounts' | 'diary' | 'settings'
 
 interface SidebarProps {
   page: Page
@@ -13,6 +13,7 @@ const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
   { page: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { page: 'trades',    label: 'Trades',    Icon: ClipboardList   },
   { page: 'analytics', label: 'Analytics', Icon: BarChart2       },
+  { page: 'diary',     label: 'Daily Diary', Icon: BookOpen      },
   { page: 'news',      label: 'News',      Icon: Newspaper       },
   { page: 'accounts',  label: 'Accounts',  Icon: Wallet          },
   { page: 'settings',  label: 'Settings',  Icon: Settings        },
@@ -28,9 +29,12 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
         display: 'flex',
         flexDirection: 'column',
         background: '#090909',
-        borderRight: '1px solid #141414',
+        borderRight: '1px solid #1a1a1a',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.5)',
         transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
         overflow: 'hidden',
+        position: 'relative',
+        zIndex: 10,
       }}
     >
       {/* Header */}
@@ -58,6 +62,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
           flexShrink: 0, position: 'relative', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: '24px 16px 20px', borderBottom: '1px solid #141414',
+          background: 'linear-gradient(180deg, #111 0%, #090909 100%)',
         }}>
           {/* Collapse button — top right */}
           <button
@@ -78,8 +83,10 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
           {/* Logo */}
           <div style={{
             width: 46, height: 46, borderRadius: 14,
-            background: '#161616', border: '1px solid #222',
+            background: 'linear-gradient(135deg, #1e1e1e 0%, #141414 100%)',
+            border: '1px solid #2a2a2a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}>
             <TrendingUp size={22} color="#888" />
           </div>
@@ -116,10 +123,11 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
                 background: active ? '#1a1a1a' : 'transparent',
                 color: active ? '#ffffff' : '#666',
                 fontSize: 15,
-                fontWeight: active ? 600 : 400,
+                fontWeight: active ? 700 : 400,
                 transition: 'all 0.15s ease',
                 position: 'relative',
                 overflow: 'hidden',
+                boxShadow: active ? 'inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 8px rgba(0,0,0,0.3)' : 'none',
               }}
               onMouseEnter={e => {
                 if (!active) {
@@ -138,11 +146,11 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
                 <div style={{
                   position: 'absolute', left: 0, top: '50%',
                   transform: 'translateY(-50%)',
-                  width: 2, height: 18, borderRadius: 2,
-                  background: '#f0f0f0',
+                  width: 3, height: 20, borderRadius: 2,
+                  background: 'linear-gradient(180deg, #f0f0f0 0%, #aaa 100%)',
                 }} />
               )}
-              <Icon size={17} strokeWidth={1.8} />
+              <Icon size={17} strokeWidth={active ? 2 : 1.8} />
               {!collapsed && (
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden' }}>{label}</span>
               )}

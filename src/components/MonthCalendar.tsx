@@ -7,6 +7,7 @@ interface MonthCalendarProps {
   month: number
   trades: DashTrade[]
   journalEntries?: JournalEntry[]
+  diaryDates?: string[]
   onDayClick: (date: string) => void
   onPrevMonth: () => void
   onNextMonth: () => void
@@ -31,7 +32,7 @@ function calcDayR(trades: JournalEntry['trades']): number | null {
   return hasAny ? total : null
 }
 
-export function MonthCalendar({ year, month, trades, journalEntries, onDayClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
+export function MonthCalendar({ year, month, trades, journalEntries, diaryDates, onDayClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayStr = new Date().toISOString().split('T')[0]
@@ -169,6 +170,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, onDayClick,
                 const losses = dayLogs.filter(t => t.result === 'Loss').length
                 const bes = dayLogs.filter(t => t.result === 'BE').length
                 const dayR = dayLogs.length > 0 ? calcDayR(dayLogs) : null
+                const hasDiary = diaryDates?.includes(dateStr) ?? false
 
                 const wlbeParts = [
                   wins > 0 ? `${wins}W` : null,
@@ -204,9 +206,14 @@ export function MonthCalendar({ year, month, trades, journalEntries, onDayClick,
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#3a3a3a'; e.currentTarget.style.background = hasData ? cellBg : '#151515' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? '#4a4a4a' : cellBorder; e.currentTarget.style.background = cellBg }}
                   >
-                    <span style={{ fontSize: 14, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>
-                      {day}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>
+                        {day}
+                      </span>
+                      {hasDiary && (
+                        <span title="Diary entry" style={{ fontSize: 11, lineHeight: 1, opacity: 0.7 }}>📝</span>
+                      )}
+                    </div>
                     {hasData && (
                       <>
                         <span style={{ fontSize: 13, fontWeight: 800, color: isPositive ? '#4ade80' : isNegative ? '#f87171' : '#888', lineHeight: 1, marginTop: 2 }}>

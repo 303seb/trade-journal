@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Sidebar } from './components/Sidebar'
 import type { Page } from './components/Sidebar'
 import { Dashboard } from './pages/Dashboard'
 import { Journal } from './pages/Journal'
 import { Analytics } from './pages/Analytics'
 import { Accounts } from './pages/Accounts'
+import { DailyJournal } from './pages/DailyJournal'
+import { Settings } from './pages/Settings'
 import { useStore } from './store/useStore'
 import './index.css'
 
@@ -38,12 +40,23 @@ function App() {
     addTradingAccount,
     updateTradingAccount,
     deleteTradingAccount,
+    diaryEntries,
+    saveDiaryEntry,
+    appSettings,
+    updateAppSettings,
   } = useStore()
+
+  // Apply theme on mount and when settings change
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', appSettings.darkMode ? 'dark' : 'light')
+  }, [appSettings.darkMode])
 
   const navigateToJournal = (date?: string) => {
     setJournalDate(date)
     setPage('trades')
   }
+
+  const diaryDates = Object.keys(diaryEntries).filter(k => diaryEntries[k]?.trim())
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0e0e0e]">
@@ -62,6 +75,7 @@ function App() {
               tradingRules={tradingRules}
               onSetGoal={setMonthlyGoal}
               onNavigateToJournal={navigateToJournal}
+              diaryDates={diaryDates}
             />
           </div>
         )}
@@ -91,7 +105,7 @@ function App() {
             />
           </div>
         )}
-        {page === 'news'     && <Placeholder label="News" />}
+        {page === 'news' && <Placeholder label="News" />}
         {page === 'accounts' && (
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <Accounts
@@ -103,7 +117,25 @@ function App() {
             />
           </div>
         )}
-        {page === 'settings' && <Placeholder label="Settings" />}
+        {page === 'diary' && (
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <DailyJournal
+              diaryEntries={diaryEntries}
+              onSave={saveDiaryEntry}
+            />
+          </div>
+        )}
+        {page === 'settings' && (
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <Settings
+              settings={appSettings}
+              onUpdate={updateAppSettings}
+              journalEntries={journalEntries}
+              diaryEntries={diaryEntries}
+              tradingAccounts={tradingAccounts}
+            />
+          </div>
+        )}
       </main>
     </div>
   )

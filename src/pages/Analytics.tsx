@@ -72,6 +72,24 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const [period, setPeriod] = useState<Period>('all')
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
+  // Account filter: null = all (no accounts created), otherwise array of selected account names
+  const [selectedAccounts, setSelectedAccounts] = useState<string[] | null>(null)
+
+  const accountNames = tradingAccounts.map(a => a.name)
+  // Initialize selected accounts when tradingAccounts first loads
+  const effectiveSelected = selectedAccounts ?? accountNames
+
+  const toggleAccount = (name: string) => {
+    const current = effectiveSelected
+    if (current.includes(name)) {
+      setSelectedAccounts(current.filter(n => n !== name))
+    } else {
+      setSelectedAccounts([...current, name])
+    }
+  }
+
+  const selectAll = () => setSelectedAccounts(accountNames)
+  const selectNone = () => setSelectedAccounts([])
 
   const prevPeriod = () => {
     if (period === 'year') setYear(y => y - 1)
@@ -88,11 +106,16 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
     }
   }
 
-  // ── All trades flat with date ──
-  const allTradesFlat = useMemo(() =>
-    journalEntries.flatMap(e => e.trades.map(t => ({ ...t, date: e.date }))),
-    [journalEntries]
-  )
+  // ── All trades flat with date (account-filtered) ──
+  const allTradesFlat = useMemo(() => {
+    const flat = journalEntries.flatMap(e => e.trades.map(t => ({ ...t, date: e.date })))
+    // If accounts exist, filter by selected; otherwise show all
+    if (accountNames.length === 0) return flat
+    const sel = effectiveSelected
+    if (sel.length === 0) return []
+    return flat.filter(t => (t.accounts || []).some(a => sel.includes(a)) || (t.accounts || []).length === 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journalEntries, effectiveSelected.join(','), accountNames.length])
 
   // ── Filtered trades ──
   const filteredTrades = useMemo(() => {
@@ -292,6 +315,51 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
             {period === 'all' && <span style={{ fontSize: 14, fontWeight: 600, color: '#444' }}>All Time</span>}
           </div>
         </div>
+
+        {/* ── Account filter (only shown when accounts exist) ── */}
+        {accountNames.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+            padding: '14px 18px', borderRadius: 14,
+            background: '#111', border: '1px solid #1a1a1a',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+          }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#555', textTransform: 'uppercase', letterSpacing: '0.09em', whiteSpace: 'nowrap' }}>Accounts</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {accountNames.map(name => {
+                const active = effectiveSelected.includes(name)
+                const acc = tradingAccounts.find(a => a.name === name)
+                const typeColor = acc?.type === 'Live' ? '#4ade80' : acc?.type === 'Eval' ? '#fbbf24' : '#60a5fa'
+                return (
+                  <button
+                    key={name}
+                    onClick={() => toggleAccount(name)}
+                    style={{
+                      padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                      border: `1px solid ${active ? typeColor + '55' : '#1e1e1e'}`,
+                      background: active ? typeColor + '14' : 'transparent',
+                      color: active ? typeColor : '#555',
+                      cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#aaa' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#555' }}
+                  >{name}</button>
+                )
+              })}
+            </div>
+            <div style={{ flex: 1 }} />
+            <div style={{ display: 'flex', gap: 5 }}>
+              <button onClick={selectAll} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#aaa')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+              >All</button>
+              <button onClick={selectNone} style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#aaa')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+              >None</button>
+            </div>
+          </div>
+        )}
 
         {/* ── Stats row 1 ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>

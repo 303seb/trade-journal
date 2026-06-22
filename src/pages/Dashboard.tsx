@@ -47,9 +47,10 @@ interface DashboardProps {
   tradingRules: TradingRule[]
   onSetGoal: (month: string, amount: number) => void
   onNavigateToJournal: (date?: string) => void
+  diaryDates?: string[]
 }
 
-export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal }: DashboardProps) {
+export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal, diaryDates }: DashboardProps) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -173,6 +174,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
         month={month}
         trades={allTrades}
         journalEntries={journalEntries}
+        diaryDates={diaryDates}
         onDayClick={date => {
           const entry = journalEntries.find(e => e.date === date)
           if (entry) setPopupDate(date)

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount } from '../types'
+import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings } from '../types'
 
 const KEYS = {
   journal: 'tj_journal',
@@ -7,6 +7,8 @@ const KEYS = {
   confluences: 'tj_confluences',
   rules: 'tj_rules',
   accounts: 'tj_accounts',
+  diary: 'tj_diary',
+  settings: 'tj_settings',
 }
 
 const DEFAULT_CONFLUENCES = [
@@ -50,6 +52,16 @@ export function useStore() {
   )
   const [tradingAccounts, setTradingAccounts] = useState<TradingAccount[]>(() =>
     load(KEYS.accounts, [])
+  )
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntries>(() =>
+    load(KEYS.diary, {})
+  )
+  const [appSettings, setAppSettings] = useState<AppSettings>(() =>
+    load(KEYS.settings, {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+      darkMode: true,
+      dailyReminder: false,
+    })
   )
 
   const deleteJournalEntry = useCallback((date: string) => {
@@ -146,6 +158,21 @@ export function useStore() {
     })
   }, [])
 
+  const saveDiaryEntry = useCallback((date: string, text: string) => {
+    setDiaryEntries(prev => {
+      const next = { ...prev }
+      if (text.trim()) next[date] = text
+      else delete next[date]
+      save(KEYS.diary, next)
+      return next
+    })
+  }, [])
+
+  const updateAppSettings = useCallback((settings: AppSettings) => {
+    setAppSettings(settings)
+    save(KEYS.settings, settings)
+  }, [])
+
   return {
     journalEntries,
     monthlyGoals,
@@ -163,5 +190,9 @@ export function useStore() {
     addTradingAccount,
     updateTradingAccount,
     deleteTradingAccount,
+    diaryEntries,
+    saveDiaryEntry,
+    appSettings,
+    updateAppSettings,
   }
 }

@@ -114,7 +114,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
                 border: 'none',
                 cursor: 'pointer',
                 background: active ? '#1a1a1a' : 'transparent',
-                color: active ? '#ffffff' : '#3a3a3a',
+                color: active ? '#ffffff' : '#666',
                 fontSize: 15,
                 fontWeight: active ? 600 : 400,
                 transition: 'all 0.15s ease',
@@ -124,13 +124,13 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
               onMouseEnter={e => {
                 if (!active) {
                   e.currentTarget.style.background = '#111'
-                  e.currentTarget.style.color = '#777'
+                  e.currentTarget.style.color = '#ccc'
                 }
               }}
               onMouseLeave={e => {
                 if (!active) {
                   e.currentTarget.style.background = 'transparent'
-                  e.currentTarget.style.color = '#3a3a3a'
+                  e.currentTarget.style.color = '#666'
                 }
               }}
             >

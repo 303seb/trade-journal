@@ -53,6 +53,10 @@ function emptyTrade(): TradeLog {
     newsPresent: '',
     newsType: '',
     screenshots: [],
+    orderBlock: [],
+    bprPresent: [],
+    stdvPresent: [],
+    otePresent: [],
   }
 }
 function safeEntry(raw: unknown, date: string): JournalEntry {
@@ -105,6 +109,10 @@ function calcSetupGrade(t: TradeLog): { grade: string; score: number } | null {
   if ((t.fvgPresent || []).length > 0) score += 1
   if ((t.ifvgPresent || []).length > 0) score += 1
   if ((t.rejectionBlock || []).length > 0) score += 1
+  if ((t.orderBlock || []).length > 0) score += 1
+  if ((t.bprPresent || []).length > 0) score += 1
+  if ((t.stdvPresent || []).length > 0) score += 1
+  if ((t.otePresent || []).length > 0) score += 1
   if (t.timeframeExecuted) score += 1
   score += Math.min((t.confluences || []).length, 3)
   if (score === 0) return null
@@ -124,6 +132,7 @@ const SYMBOLS = ['NQ', 'ES', 'GC', 'MNQ', 'MES', 'MGC']
 const CONFLUENCE_BASES = ['Rejection Block', 'Order Block', 'FVG', 'iFVG', 'CISD', 'BPR', 'STDV', 'OTE']
 const TIMEFRAMES = ['1m', '2m', '3m', '4m', '5m', '15m', '30m', '1hr', '4hr', 'Daily']
 const STDV_LEVELS = ['+0.5', '+1', '+1.5', '+2', '+2.5', '-0.5', '-1', '-1.5', '-2', '-2.5']
+const STDV_CONTEXT_LEVELS = ['-1', '-2 to -2.5', '-4 to -4.5']
 
 const RESULTS: { value: TradeResult; label: string; color: string; bg: string }[] = [
   { value: 'Win',   label: 'Win',   color: '#4ade80', bg: 'rgba(74,222,128,0.12)'  },
@@ -161,12 +170,12 @@ const EXIT_REASONS = ['Full TP', 'Swept Internal High/Low', 'SMT']
 
 const inputBase: React.CSSProperties = {
   background: '#0e0e0e', border: '1px solid #1e1e1e', borderRadius: 8,
-  padding: '9px 12px', fontSize: 14, color: '#e0e0e0', outline: 'none',
+  padding: '9px 12px', fontSize: 15, color: '#f0f0f0', outline: 'none',
   width: '100%', boxSizing: 'border-box', transition: 'border-color 0.15s',
   fontFamily: 'inherit',
 }
 const fieldLabel = (text: string) => (
-  <div style={{ fontSize: 11, color: '#444', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7 }}>{text}</div>
+  <div style={{ fontSize: 12, color: '#999', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7 }}>{text}</div>
 )
 
 // ── Screenshot Upload ─────────────────────────────────────────────────────────
@@ -202,8 +211,8 @@ function ScreenshotUpload({ label, preview, onFile, onClear }: {
           onMouseEnter={e => (e.currentTarget.style.borderColor = '#333')}
           onMouseLeave={e => (e.currentTarget.style.borderColor = '#1a1a1a')}
         >
-          <ImageIcon size={14} color="#2a2a2a" />
-          <span style={{ fontSize: 10, color: '#2a2a2a' }}>Click or drag image</span>
+          <ImageIcon size={16} color="#555" />
+          <span style={{ fontSize: 12, color: '#555' }}>Click or drag image</span>
         </div>
       )}
       <input ref={ref} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handle(f) }} />
@@ -218,14 +227,14 @@ function PillBtn({ label, active, onClick, activeColor, activeBg }: {
 }) {
   return (
     <button onClick={onClick} style={{
-      flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+      flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 13, fontWeight: 600,
       border: `1px solid ${active ? activeColor + '55' : '#1e1e1e'}`,
       background: active ? activeBg : 'transparent',
-      color: active ? activeColor : '#3a3a3a',
+      color: active ? activeColor : '#666',
       cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
     }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
+      onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#aaa' }}
+      onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#666' }}
     >{label}</button>
   )
 }
@@ -233,14 +242,14 @@ function PillBtn({ label, active, onClick, activeColor, activeBg }: {
 function TagChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-      border: `1px solid ${active ? '#3a3a3a' : '#1a1a1a'}`,
-      background: active ? '#1e1e1e' : 'transparent',
-      color: active ? '#d0d0d0' : '#3a3a3a',
+      padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+      border: `1px solid ${active ? '#4a4a4a' : '#222'}`,
+      background: active ? '#252525' : 'transparent',
+      color: active ? '#f0f0f0' : '#666',
       cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
     }}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
-      onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
     >{label}</button>
   )
 }
@@ -262,11 +271,11 @@ function ConfluencePicker({ confluences, onChange }: {
       {confluences.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
           {confluences.map(tag => (
-            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 11, background: '#1e1e1e', border: '1px solid #333', color: '#d0d0d0' }}>
+            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
               {tag}
-              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#555', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
               ><X size={9} /></button>
             </span>
           ))}
@@ -278,14 +287,14 @@ function ConfluencePicker({ confluences, onChange }: {
           const isOpen = activePicker === base
           return (
             <button key={base} onClick={() => setActivePicker(isOpen ? null : base)} style={{
-              padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-              border: `1px solid ${hasAny || isOpen ? '#3a3a3a' : '#1a1a1a'}`,
-              background: hasAny || isOpen ? '#1e1e1e' : 'transparent',
-              color: hasAny || isOpen ? '#d0d0d0' : '#3a3a3a',
+              padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${hasAny || isOpen ? '#4a4a4a' : '#222'}`,
+              background: hasAny || isOpen ? '#252525' : 'transparent',
+              color: hasAny || isOpen ? '#f0f0f0' : '#666',
               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
             }}
-              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
-              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
             >{base}</button>
           )
         })}
@@ -293,17 +302,17 @@ function ConfluencePicker({ confluences, onChange }: {
       {activePicker && (
         <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div>
-            <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{activePicker} — Timeframe</div>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{activePicker} — Timeframe</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {TIMEFRAMES.map(tf => {
                 const combo = `${activePicker} (${tf})`
                 const sel = confluences.includes(combo)
                 return (
                   <button key={tf} onClick={() => toggle(combo)} style={{
-                    padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
                     border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
                     background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : '#3a3a3a',
+                    color: sel ? '#4ade80' : '#666',
                     cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
                   }}>{tf}</button>
                 )
@@ -312,17 +321,17 @@ function ConfluencePicker({ confluences, onChange }: {
           </div>
           {activePicker === 'STDV' && (
             <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 8 }}>
-              <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>STDV Level</div>
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>STDV Level</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {STDV_LEVELS.map(lv => {
                   const tag = `STDV ${lv}σ`
                   const sel = confluences.includes(tag)
                   return (
                     <button key={lv} onClick={() => toggle(tag)} style={{
-                      padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                      padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
                       border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
                       background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                      color: sel ? '#4ade80' : '#3a3a3a',
+                      color: sel ? '#4ade80' : '#666',
                       cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
                     }}>{lv}σ</button>
                   )
@@ -354,11 +363,11 @@ function TFTagPicker({ bases, selected, onChange }: {
       {selected.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
           {selected.map(tag => (
-            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 11, background: '#1e1e1e', border: '1px solid #333', color: '#d0d0d0' }}>
+            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
               {tag}
-              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#555', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
               ><X size={9} /></button>
             </span>
           ))}
@@ -370,35 +379,119 @@ function TFTagPicker({ bases, selected, onChange }: {
           const isOpen = activePicker === base
           return (
             <button key={base} onClick={() => setActivePicker(isOpen ? null : base)} style={{
-              padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-              border: `1px solid ${hasAny || isOpen ? '#3a3a3a' : '#1a1a1a'}`,
-              background: hasAny || isOpen ? '#1e1e1e' : 'transparent',
-              color: hasAny || isOpen ? '#d0d0d0' : '#3a3a3a',
+              padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${hasAny || isOpen ? '#4a4a4a' : '#222'}`,
+              background: hasAny || isOpen ? '#252525' : 'transparent',
+              color: hasAny || isOpen ? '#f0f0f0' : '#666',
               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
             }}
-              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
-              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+              onMouseEnter={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+              onMouseLeave={e => { if (!hasAny && !isOpen) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
             >{base}</button>
           )
         })}
       </div>
       {activePicker && (
         <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a' }}>
-          <div style={{ fontSize: 10, color: '#555', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
+          <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {TIMEFRAMES.map(tf => {
               const combo = `${activePicker} (${tf})`
               const sel = selected.includes(combo)
               return (
                 <button key={tf} onClick={() => toggle(combo)} style={{
-                  padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 500,
+                  padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
                   border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
                   background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                  color: sel ? '#4ade80' : '#3a3a3a',
+                  color: sel ? '#4ade80' : '#666',
                   cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
                 }}>{tf}</button>
               )
             })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── STDV Context Picker (timeframe + level) ───────────────────────────────────
+
+function STDVContextPicker({ selected, onChange }: {
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const hasAny = selected.length > 0
+
+  const toggle = (tag: string) => {
+    onChange(selected.includes(tag) ? selected.filter(t => t !== tag) : [...selected, tag])
+  }
+
+  return (
+    <div>
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+          {selected.map(tag => (
+            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
+              {tag}
+              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+              ><X size={9} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: open ? 8 : 0 }}>
+        <button onClick={() => setOpen(!open)} style={{
+          padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+          border: `1px solid ${hasAny || open ? '#4a4a4a' : '#222'}`,
+          background: hasAny || open ? '#252525' : 'transparent',
+          color: hasAny || open ? '#f0f0f0' : '#666',
+          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+        }}
+          onMouseEnter={e => { if (!hasAny && !open) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+          onMouseLeave={e => { if (!hasAny && !open) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
+        >STDV</button>
+      </div>
+      {open && (
+        <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {TIMEFRAMES.map(tf => {
+                const combo = `STDV (${tf})`
+                const sel = selected.includes(combo)
+                return (
+                  <button key={tf} onClick={() => toggle(combo)} style={{
+                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+                    color: sel ? '#4ade80' : '#666',
+                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                  }}>{tf}</button>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>STDV Level</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {STDV_CONTEXT_LEVELS.map(lv => {
+                const tag = `STDV ${lv}`
+                const sel = selected.includes(tag)
+                return (
+                  <button key={lv} onClick={() => toggle(tag)} style={{
+                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+                    color: sel ? '#4ade80' : '#666',
+                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                  }}>{lv}</button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -414,9 +507,9 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
       display: 'flex', alignItems: 'center', gap: 12, width: '100%',
       background: 'none', border: 'none', cursor: 'pointer', padding: '22px 0 0', margin: 0,
     }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: open ? '#555' : '#333', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>{title}</span>
-      <div style={{ flex: 1, height: 1, background: '#181818' }} />
-      <ChevronDown size={12} color="#333" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
+      <span style={{ fontSize: 11, fontWeight: 700, color: open ? '#aaa' : '#666', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>{title}</span>
+      <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
+      <ChevronDown size={13} color="#555" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
     </button>
   )
 }
@@ -495,7 +588,7 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
 
         {/* Header */}
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #141414' }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#e0e0e0', flex: 1 }}>New Trade</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#f8f8f8', flex: 1 }}>New Trade</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2a2a2a', display: 'flex', padding: 4, borderRadius: 6, transition: 'color 0.15s' }}
             onMouseEnter={e => (e.currentTarget.style.color = '#888')}
             onMouseLeave={e => (e.currentTarget.style.color = '#2a2a2a')}
@@ -658,15 +751,15 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
 
               {/* Auto-Calculated subsection */}
               <div style={{ background: '#0b0b0b', border: '1px solid #1a1a1a', borderRadius: 12, padding: '16px 20px', marginTop: 4 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#252525', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Auto-Calculated</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Auto-Calculated</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderLeft: '1px solid #1a1a1a' }}>
                   {[
-                    { label: 'Gross P&L', value: hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—', color: hasPnl ? grossColor : '#252525' },
-                    { label: 'Net P&L',   value: hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—',   color: hasPnl ? netColor : '#252525' },
-                    { label: 'R Multiple', value: rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—', color: rMultiple !== null ? rColor : '#252525' },
+                    { label: 'Gross P&L', value: hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—', color: hasPnl ? grossColor : '#333' },
+                    { label: 'Net P&L',   value: hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—',   color: hasPnl ? netColor : '#333' },
+                    { label: 'R Multiple', value: rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—', color: rMultiple !== null ? rColor : '#333' },
                   ].map(item => (
                     <div key={item.label} style={{ padding: '0 20px', borderRight: '1px solid #1a1a1a' }}>
-                      <div style={{ fontSize: 10, color: '#2a2a2a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{item.label}</div>
                       <div style={{ fontSize: 26, fontWeight: 700, color: item.color, letterSpacing: '-0.02em' }}>{item.value}</div>
                     </div>
                   ))}
@@ -676,8 +769,8 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
             </div>
           )}
 
-          {/* ── SECTION 2: ICT / TRADE CONTEXT ── */}
-          <SectionHeader title="ICT / Trade Context" open={openSec[1]} onToggle={() => toggleSec(1)} />
+          {/* ── SECTION 2: TRADE CONTEXT ── */}
+          <SectionHeader title="Trade Context" open={openSec[1]} onToggle={() => toggleSec(1)} />
           {openSec[1] && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 20, paddingBottom: 8 }}>
 
@@ -803,6 +896,28 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
                 </div>
               </div>
 
+              {/* Order Block + BPR + OTE */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                <div>
+                  {fieldLabel('Order Block')}
+                  <TFTagPicker bases={['OB']} selected={trade.orderBlock || []} onChange={v => set('orderBlock', v)} />
+                </div>
+                <div>
+                  {fieldLabel('BPR')}
+                  <TFTagPicker bases={['BPR']} selected={trade.bprPresent || []} onChange={v => set('bprPresent', v)} />
+                </div>
+                <div>
+                  {fieldLabel('OTE')}
+                  <TFTagPicker bases={['OTE']} selected={trade.otePresent || []} onChange={v => set('otePresent', v)} />
+                </div>
+              </div>
+
+              {/* STDV */}
+              <div>
+                {fieldLabel('STDV')}
+                <STDVContextPicker selected={trade.stdvPresent || []} onChange={v => set('stdvPresent', v)} />
+              </div>
+
               {/* Timeframe Executed + Exit Reason */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
@@ -812,14 +927,14 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
                       const active = trade.timeframeExecuted === tf
                       return (
                         <button key={tf} onClick={() => set('timeframeExecuted', active ? '' : tf)} style={{
-                          padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-                          border: `1px solid ${active ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                          padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                          border: `1px solid ${active ? 'rgba(74,222,128,0.4)' : '#222'}`,
                           background: active ? 'rgba(74,222,128,0.1)' : 'transparent',
-                          color: active ? '#4ade80' : '#3a3a3a',
+                          color: active ? '#4ade80' : '#666',
                           cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
                         }}
-                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
-                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
                         >{tf}</button>
                       )
                     })}
@@ -832,14 +947,14 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
                       const active = (trade.exitReason || []).includes(r)
                       return (
                         <button key={r} onClick={() => toggleArr('exitReason', r)} style={{
-                          padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-                          border: `1px solid ${active ? '#3a3a3a' : '#1a1a1a'}`,
-                          background: active ? '#1e1e1e' : 'transparent',
-                          color: active ? '#d0d0d0' : '#3a3a3a',
+                          padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                          border: `1px solid ${active ? '#4a4a4a' : '#222'}`,
+                          background: active ? '#252525' : 'transparent',
+                          color: active ? '#f0f0f0' : '#666',
                           cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
                         }}
-                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#777'; e.currentTarget.style.borderColor = '#2a2a2a' } }}
-                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#3a3a3a'; e.currentTarget.style.borderColor = '#1a1a1a' } }}
+                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
+                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
                         >{r}</button>
                       )
                     })}
@@ -882,37 +997,31 @@ function NewTradeModal({ initialDate, onSave, onClose }: {
                 </div>
               </div>
 
-              {/* Confluences */}
-              <div>
-                {fieldLabel('Confluences')}
-                <ConfluencePicker confluences={trade.confluences} onChange={v => set('confluences', v)} />
-              </div>
-
               {/* Auto-Grade subsection */}
               <div style={{ background: '#0b0b0b', border: '1px solid #1a1a1a', borderRadius: 12, padding: '16px 20px' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#252525', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Setup Grade — Auto Calculated</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Setup Grade — Auto Calculated</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                   <div style={{ fontSize: 48, fontWeight: 800, color: autoGradeColor, letterSpacing: '-0.03em', lineHeight: 1, minWidth: 60 }}>
                     {autoGradeResult?.grade ?? '—'}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ fontSize: 13, color: '#555', fontWeight: 500 }}>
+                    <div style={{ fontSize: 14, color: '#888', fontWeight: 500 }}>
                       {autoGradeResult
                         ? `${autoGradeResult.score} signal${autoGradeResult.score !== 1 ? 's' : ''} detected`
-                        : 'Fill in ICT context fields to generate a grade'}
+                        : 'Fill in trade context fields to generate a grade'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#2a2a2a' }}>
-                      HTF bias · DOL · Liquidity · Structure · Confluences · Execution
+                    <div style={{ fontSize: 12, color: '#555' }}>
+                      HTF bias · DOL · Liquidity · PD Arrays · Structure · Execution
                     </div>
                   </div>
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                     {GRADES.map(g => (
                       <div key={g} style={{
-                        width: 30, height: 30, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 700,
+                        width: 32, height: 32, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, fontWeight: 700,
                         background: autoGradeResult?.grade === g ? `${GRADE_COLORS[g]}20` : 'transparent',
                         border: `1px solid ${autoGradeResult?.grade === g ? GRADE_COLORS[g] + '55' : '#1a1a1a'}`,
-                        color: autoGradeResult?.grade === g ? GRADE_COLORS[g] : '#222',
+                        color: autoGradeResult?.grade === g ? GRADE_COLORS[g] : '#444',
                         transition: 'all 0.2s',
                       }}>{g}</div>
                     ))}
@@ -1265,8 +1374,8 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
       onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = '#0b0b0b' }}
       onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ fontSize: 11, color: expanded ? '#666' : '#444', fontWeight: 500 }}>{dateLabel}</span>
-      <span style={{ fontSize: 13, fontWeight: 700, color: expanded ? '#ddd' : '#bbb' }}>{trade.symbol || '—'}</span>
+      <span style={{ fontSize: 12, color: expanded ? '#888' : '#666', fontWeight: 500 }}>{dateLabel}</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color: expanded ? '#f0f0f0' : '#d0d0d0' }}>{trade.symbol || '—'}</span>
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, width: 'fit-content',
@@ -1274,12 +1383,12 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
         border: `1px solid ${trade.side === 'Long' ? 'rgba(34,211,238,0.25)' : 'rgba(248,113,113,0.2)'}`,
         color: trade.side === 'Long' ? '#22d3ee' : '#f87171',
       }}>{trade.side}</span>
-      <span style={{ fontSize: 12, color: '#3a3a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
-      <span style={{ fontSize: 11, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>
-      <span style={{ fontSize: 13, fontWeight: 700, color: pnlColor }}>
+      <span style={{ fontSize: 13, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
+      <span style={{ fontSize: 12, color: '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>
+      <span style={{ fontSize: 14, fontWeight: 700, color: pnlColor }}>
         {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
       </span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: rrColor }}>
+      <span style={{ fontSize: 13, fontWeight: 700, color: rrColor }}>
         {rrVal ? `${rrNum! >= 0 ? '+' : ''}${rrVal}R` : '—'}
       </span>
       <span style={{
@@ -1290,13 +1399,13 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
       {gc ? (
         <span style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700, width: 'fit-content',
+          padding: '3px 8px', borderRadius: 6, fontSize: 12, fontWeight: 700, width: 'fit-content',
           background: `${gc}18`, border: `1px solid ${gc}44`, color: gc,
         }}>{trade.grade}</span>
       ) : (
-        <span style={{ fontSize: 12, color: '#1e1e1e' }}>—</span>
+        <span style={{ fontSize: 12, color: '#333' }}>—</span>
       )}
-      <ChevronDown size={13} color="#2a2a2a" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s', justifySelf: 'end' }} />
+      <ChevronDown size={14} color="#555" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s', justifySelf: 'end' }} />
     </div>
   )
 }
@@ -1418,7 +1527,7 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
   const COL = '150px 70px 84px 1fr 130px 110px 70px 76px 56px 24px'
 
   const hStyle: React.CSSProperties = {
-    fontSize: 10, fontWeight: 700, color: '#2a2a2a',
+    fontSize: 11, fontWeight: 700, color: '#555',
     textTransform: 'uppercase', letterSpacing: '0.09em', padding: '9px 0',
   }
   const selectStyle = (active: boolean): React.CSSProperties => ({
@@ -1443,7 +1552,7 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
 
       {/* Filter bar */}
       <div style={{ flexShrink: 0, padding: '12px 36px', borderBottom: '1px solid #111', display: 'flex', alignItems: 'center', gap: 10, background: '#070707' }}>
-        <span style={{ fontSize: 12, color: '#252525', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>
+        <span style={{ fontSize: 13, color: '#666', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>
         <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#2a2a2a', pointerEvents: 'none' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search trades…"
@@ -1486,8 +1595,8 @@ export function Journal({ entries, onSave, onDelete, initialDate }: JournalProps
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '70px 0', gap: 12 }}>
-            <BookOpen size={30} color="#1a1a1a" />
-            <p style={{ color: '#1e1e1e', fontSize: 13, margin: 0 }}>
+            <BookOpen size={30} color="#333" />
+            <p style={{ color: '#555', fontSize: 14, margin: 0 }}>
               {allTrades.length === 0 ? 'No trades yet — click New Trade to add one' : 'No trades match your filters'}
             </p>
           </div>

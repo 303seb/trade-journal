@@ -47,10 +47,11 @@ interface DashboardProps {
   tradingRules: TradingRule[]
   onSetGoal: (month: string, amount: number) => void
   onNavigateToJournal: (date?: string) => void
+  onNavigateToDiary?: (date: string) => void
   diaryDates?: string[]
 }
 
-export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal, diaryDates }: DashboardProps) {
+export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal, onNavigateToDiary, diaryDates }: DashboardProps) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -179,6 +180,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
           const entry = journalEntries.find(e => e.date === date)
           if (entry) setPopupDate(date)
         }}
+        onDiaryClick={onNavigateToDiary}
         onPrevMonth={prevMonth}
         onNextMonth={nextMonth}
       />

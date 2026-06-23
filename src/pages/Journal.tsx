@@ -465,90 +465,6 @@ function TFTagPicker({ bases, selected, onChange }: {
   )
 }
 
-// ── STDV Context Picker (timeframe + level) ───────────────────────────────────
-
-function STDVContextPicker({ selected, onChange }: {
-  selected: string[]
-  onChange: (next: string[]) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const hasAny = selected.length > 0
-
-  const toggle = (tag: string) => {
-    onChange(selected.includes(tag) ? selected.filter(t => t !== tag) : [...selected, tag])
-  }
-
-  return (
-    <div>
-      {selected.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-          {selected.map(tag => (
-            <span key={tag} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
-              {tag}
-              <button onClick={() => toggle(tag)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#666')}
-              ><X size={9} /></button>
-            </span>
-          ))}
-        </div>
-      )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: open ? 8 : 0 }}>
-        <button onClick={() => setOpen(!open)} style={{
-          padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-          border: `1px solid ${hasAny || open ? '#4a4a4a' : '#222'}`,
-          background: hasAny || open ? '#252525' : 'transparent',
-          color: hasAny || open ? '#f0f0f0' : '#666',
-          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-        }}
-          onMouseEnter={e => { if (!hasAny && !open) { e.currentTarget.style.color = '#bbb'; e.currentTarget.style.borderColor = '#333' } }}
-          onMouseLeave={e => { if (!hasAny && !open) { e.currentTarget.style.color = '#666'; e.currentTarget.style.borderColor = '#222' } }}
-        >STDV</button>
-      </div>
-      {open && (
-        <div style={{ padding: '8px 12px', background: '#111', borderRadius: 10, border: '1px solid #1a1a1a', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {TIMEFRAMES.map(tf => {
-                const combo = `STDV (${tf})`
-                const sel = selected.includes(combo)
-                return (
-                  <button key={tf} onClick={() => toggle(combo)} style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
-                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : '#666',
-                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                  }}>{tf}</button>
-                )
-              })}
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 8 }}>
-            <div style={{ fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>STDV Level</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {STDV_CONTEXT_LEVELS.map(lv => {
-                const tag = `STDV ${lv}`
-                const sel = selected.includes(tag)
-                return (
-                  <button key={lv} onClick={() => toggle(tag)} style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
-                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
-                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : '#666',
-                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                  }}>{lv}</button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Collapsible Section Header ────────────────────────────────────────────────
 
 function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
@@ -561,6 +477,231 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
       <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
       <ChevronDown size={13} color="#555" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
     </button>
+  )
+}
+
+// ── ICT Context Wizard ────────────────────────────────────────────────────────
+
+type ICTFields = {
+  smtPresent: string[]
+  cisdPresent: string[]
+  displacement: string
+  fvgPresent: string[]
+  ifvgPresent: string[]
+  rejectionBlock: string[]
+  orderBlock: string[]
+  bprPresent: string[]
+  otePresent: string[]
+  stdvPresent: string[]
+}
+
+const ICT_STEPS: { key: keyof ICTFields; label: string; type: 'tf' | 'yesno' | 'stdv'; bases?: string[] }[] = [
+  { key: 'smtPresent',     label: 'SMT Present',     type: 'tf',    bases: ['SMT']  },
+  { key: 'cisdPresent',    label: 'CISD Present',    type: 'tf',    bases: ['CISD'] },
+  { key: 'displacement',   label: 'Displacement',    type: 'yesno'                  },
+  { key: 'fvgPresent',     label: 'FVG Present',     type: 'tf',    bases: ['FVG']  },
+  { key: 'ifvgPresent',    label: 'iFVG Present',    type: 'tf',    bases: ['iFVG'] },
+  { key: 'rejectionBlock', label: 'Rejection Block', type: 'tf',    bases: ['RB']   },
+  { key: 'orderBlock',     label: 'Order Block',     type: 'tf',    bases: ['OB']   },
+  { key: 'bprPresent',     label: 'BPR',             type: 'tf',    bases: ['BPR']  },
+  { key: 'otePresent',     label: 'OTE',             type: 'tf',    bases: ['OTE']  },
+  { key: 'stdvPresent',    label: 'STDV',            type: 'stdv'                   },
+]
+
+function ICTWizard({ fields, onChange }: {
+  fields: ICTFields
+  onChange: (key: string, value: string[] | string) => void
+}) {
+  const [step, setStep] = useState<number | null>(null)
+
+  const toggleTag = (key: string, arr: string[], tag: string) => {
+    onChange(key, arr.includes(tag) ? arr.filter(t => t !== tag) : [...arr, tag])
+  }
+
+  // Build flat list of all selected items with their removal actions
+  const allChips: { label: string; remove: () => void }[] = []
+  if (fields.displacement) {
+    const v = fields.displacement
+    allChips.push({ label: `Displacement: ${v}`, remove: () => onChange('displacement', '') })
+  }
+  const arrFieldKeys = ['smtPresent', 'cisdPresent', 'fvgPresent', 'ifvgPresent', 'rejectionBlock', 'orderBlock', 'bprPresent', 'otePresent', 'stdvPresent'] as const
+  for (const fk of arrFieldKeys) {
+    const arr = (fields[fk] as string[]) || []
+    for (const tag of arr) {
+      const captured = { fk, arr: arr.slice() }
+      allChips.push({ label: tag, remove: () => onChange(captured.fk, captured.arr.filter(t => t !== tag)) })
+    }
+  }
+
+  // Collapsed view
+  if (step === null) {
+    return (
+      <div>
+        {allChips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+            {allChips.map((chip, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: '#1e1e1e', border: '1px solid #333', color: '#e0e0e0' }}>
+                {chip.label}
+                <button onClick={chip.remove} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#666', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#666')}
+                ><X size={9} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={() => setStep(0)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed #222', background: 'transparent', color: '#555', fontSize: 12, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = '#3a3a3a' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#222' }}
+        >{allChips.length > 0 ? '✏ Edit ICT Context' : '+ Add ICT Context'}</button>
+      </div>
+    )
+  }
+
+  // Wizard view
+  const curStep = ICT_STEPS[step]
+  const total = ICT_STEPS.length
+  const pct = Math.round(((step + 1) / total) * 100)
+
+  const stepContent = () => {
+    if (curStep.type === 'yesno') {
+      return (
+        <div style={{ display: 'flex', gap: 5 }}>
+          {(['Yes', 'No'] as const).map(opt => {
+            const active = fields.displacement === opt
+            const col = opt === 'Yes' ? '#4ade80' : '#f87171'
+            return (
+              <button key={opt} onClick={() => onChange('displacement', active ? '' : opt)} style={{
+                padding: '6px 20px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
+                background: active ? `${col}14` : 'transparent',
+                color: active ? col : '#666',
+                cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+              }}>{opt}</button>
+            )
+          })}
+        </div>
+      )
+    }
+    if (curStep.type === 'stdv') {
+      const arr = fields.stdvPresent
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10, color: '#555', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {TIMEFRAMES.map(tf => {
+                const tag = `STDV (${tf})`
+                const sel = arr.includes(tag)
+                return (
+                  <button key={tf} onClick={() => toggleTag('stdvPresent', arr, tag)} style={{
+                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+                    color: sel ? '#4ade80' : '#666',
+                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                  }}>{tf}</button>
+                )
+              })}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #1a1a1a', paddingTop: 10 }}>
+            <div style={{ fontSize: 10, color: '#555', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Level</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {STDV_CONTEXT_LEVELS.map(lv => {
+                const tag = `STDV ${lv}`
+                const sel = arr.includes(tag)
+                return (
+                  <button key={lv} onClick={() => toggleTag('stdvPresent', arr, tag)} style={{
+                    padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+                    color: sel ? '#4ade80' : '#666',
+                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                  }}>{lv}</button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )
+    }
+    // tf type
+    const base = curStep.bases![0]
+    const arr = (fields[curStep.key] as string[]) || []
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+        {TIMEFRAMES.map(tf => {
+          const tag = `${base} (${tf})`
+          const sel = arr.includes(tag)
+          return (
+            <button key={tf} onClick={() => toggleTag(curStep.key, arr, tag)} style={{
+              padding: '4px 10px', borderRadius: 999, fontSize: 12, fontWeight: 500,
+              border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : '#1a1a1a'}`,
+              background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
+              color: sel ? '#4ade80' : '#666',
+              cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+            }}>{tf}</button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: '#0e0e0e', border: '1px solid #1e1e1e', borderRadius: 12, padding: '14px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#d0d0d0' }}>{curStep.label}</span>
+        <span style={{ fontSize: 11, color: '#444', fontWeight: 600 }}>{step + 1} / {total}</span>
+      </div>
+      <div style={{ height: 2, background: '#1a1a1a', borderRadius: 999, marginBottom: 12, overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: '#4ade80', borderRadius: 999, transition: 'width 0.3s ease' }} />
+      </div>
+      <div style={{ marginBottom: 12 }}>{stepContent()}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button
+          onClick={() => { if (step === 0) setStep(null); else setStep(s => (s ?? 1) - 1) }}
+          style={{ padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = '#2a2a2a' }}
+          onMouseLeave={e => { e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#1e1e1e' }}
+        >{step === 0 ? '✕ Close' : '← Back'}</button>
+        <div style={{ flex: 1 }} />
+        {step < total - 1 ? (
+          <>
+            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 12, fontWeight: 500, border: '1px solid #1e1e1e', background: 'transparent', color: '#555', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#aaa' }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#555' }}
+            >Skip</button>
+            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: 'none', background: '#f0f0f0', color: '#111', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#fff' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#f0f0f0' }}
+            >Next →</button>
+          </>
+        ) : (
+          <button onClick={() => setStep(null)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.08)', color: '#4ade80', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
+            Done ✓
+          </button>
+        )}
+      </div>
+      {allChips.length > 0 && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #141414' }}>
+          <div style={{ fontSize: 10, color: '#3a3a3a', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Selected</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {allChips.map((chip, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 6px 2px 8px', borderRadius: 999, fontSize: 11, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#ccc' }}>
+                {chip.label}
+                <button onClick={chip.remove} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#555', display: 'flex', lineHeight: 1 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#555')}
+                ><X size={8} /></button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -905,75 +1046,24 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.liquiditySwept || []} onChange={v => set('liquiditySwept', v)} />
               </div>
 
-              {/* SMT + CISD + Displacement */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('SMT Present')}
-                  <TFTagPicker bases={['SMT']} selected={trade.smtPresent || []} onChange={v => set('smtPresent', v)} />
-                </div>
-                <div>
-                  {fieldLabel('CISD Present')}
-                  <TFTagPicker bases={['CISD']} selected={trade.cisdPresent || []} onChange={v => set('cisdPresent', v)} />
-                </div>
-                <div>
-                  {fieldLabel('Displacement')}
-                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                    {(['Yes', 'No'] as const).map(opt => {
-                      const active = trade.displacement === opt
-                      const col = opt === 'Yes' ? '#4ade80' : '#f87171'
-                      return (
-                        <button key={opt} onClick={() => set('displacement', active ? '' : opt)} style={{
-                          flex: 1, borderRadius: 8, fontSize: 12, fontWeight: 600,
-                          border: `1px solid ${active ? col + '44' : '#1e1e1e'}`,
-                          background: active ? `${col}14` : 'transparent',
-                          color: active ? col : '#3a3a3a',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#666' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#3a3a3a' }}
-                        >{opt}</button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* FVG Present + iFVG Present + Rejection Block */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('FVG Present')}
-                  <TFTagPicker bases={['FVG']} selected={trade.fvgPresent || []} onChange={v => set('fvgPresent', v)} />
-                </div>
-                <div>
-                  {fieldLabel('iFVG Present')}
-                  <TFTagPicker bases={['iFVG']} selected={trade.ifvgPresent || []} onChange={v => set('ifvgPresent', v)} />
-                </div>
-                <div>
-                  {fieldLabel('Rejection Block')}
-                  <TFTagPicker bases={['RB']} selected={trade.rejectionBlock || []} onChange={v => set('rejectionBlock', v)} />
-                </div>
-              </div>
-
-              {/* Order Block + BPR + OTE */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Order Block')}
-                  <TFTagPicker bases={['OB']} selected={trade.orderBlock || []} onChange={v => set('orderBlock', v)} />
-                </div>
-                <div>
-                  {fieldLabel('BPR')}
-                  <TFTagPicker bases={['BPR']} selected={trade.bprPresent || []} onChange={v => set('bprPresent', v)} />
-                </div>
-                <div>
-                  {fieldLabel('OTE')}
-                  <TFTagPicker bases={['OTE']} selected={trade.otePresent || []} onChange={v => set('otePresent', v)} />
-                </div>
-              </div>
-
-              {/* STDV */}
+              {/* ICT Context Wizard (SMT → STDV) */}
               <div>
-                {fieldLabel('STDV')}
-                <STDVContextPicker selected={trade.stdvPresent || []} onChange={v => set('stdvPresent', v)} />
+                {fieldLabel('ICT Context')}
+                <ICTWizard
+                  fields={{
+                    smtPresent:     trade.smtPresent     || [],
+                    cisdPresent:    trade.cisdPresent    || [],
+                    displacement:   trade.displacement   || '',
+                    fvgPresent:     trade.fvgPresent     || [],
+                    ifvgPresent:    trade.ifvgPresent    || [],
+                    rejectionBlock: trade.rejectionBlock || [],
+                    orderBlock:     trade.orderBlock     || [],
+                    bprPresent:     trade.bprPresent     || [],
+                    otePresent:     trade.otePresent     || [],
+                    stdvPresent:    trade.stdvPresent    || [],
+                  }}
+                  onChange={(k, v) => setTrade(prev => ({ ...prev, [k]: v }))}
+                />
               </div>
 
               {/* Timeframe Executed + Exit Reason */}

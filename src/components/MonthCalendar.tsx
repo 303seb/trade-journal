@@ -9,6 +9,7 @@ interface MonthCalendarProps {
   journalEntries?: JournalEntry[]
   diaryDates?: string[]
   onDayClick: (date: string) => void
+  onDiaryClick?: (date: string) => void
   onPrevMonth: () => void
   onNextMonth: () => void
 }
@@ -32,7 +33,7 @@ function calcDayR(trades: JournalEntry['trades']): number | null {
   return hasAny ? total : null
 }
 
-export function MonthCalendar({ year, month, trades, journalEntries, diaryDates, onDayClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
+export function MonthCalendar({ year, month, trades, journalEntries, diaryDates, onDayClick, onDiaryClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayStr = new Date().toISOString().split('T')[0]
@@ -211,7 +212,13 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                         {day}
                       </span>
                       {hasDiary && (
-                        <span title="Diary entry" style={{ fontSize: 11, lineHeight: 1, opacity: 0.7 }}>📝</span>
+                        <button
+                          onClick={e => { e.stopPropagation(); onDiaryClick?.(dateStr) }}
+                          title="Open Daily Journal"
+                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, lineHeight: 1, opacity: 0.7, display: 'flex', transition: 'opacity 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                          onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+                        >📝</button>
                       )}
                     </div>
                     {hasData && (

@@ -61,6 +61,10 @@ export function useStore() {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
       darkMode: true,
       dailyReminder: false,
+      dateFormat: 'MM/DD/YYYY',
+      reduceMotion: false,
+      weeklySummary: false,
+      ruleBreakAlerts: false,
     })
   )
 

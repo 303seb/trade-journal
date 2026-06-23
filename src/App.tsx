@@ -22,6 +22,7 @@ function App() {
   const [page, setPage] = useState<Page>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [journalDate, setJournalDate] = useState<string | undefined>()
+  const [diaryInitialDate, setDiaryInitialDate] = useState<string | undefined>()
 
   const {
     journalEntries,
@@ -56,13 +57,18 @@ function App() {
     setPage('trades')
   }
 
+  const navigateToDiary = (date: string) => {
+    setDiaryInitialDate(date)
+    setPage('diary')
+  }
+
   const diaryDates = Object.keys(diaryEntries).filter(k => diaryEntries[k]?.trim())
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0e0e0e]">
       <Sidebar
         page={page}
-        onNavigate={p => { setPage(p); if (p !== 'trades') setJournalDate(undefined) }}
+        onNavigate={p => { setPage(p); if (p !== 'trades') setJournalDate(undefined); if (p === 'diary') setDiaryInitialDate(undefined) }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(v => !v)}
       />
@@ -75,6 +81,7 @@ function App() {
               tradingRules={tradingRules}
               onSetGoal={setMonthlyGoal}
               onNavigateToJournal={navigateToJournal}
+              onNavigateToDiary={navigateToDiary}
               diaryDates={diaryDates}
             />
           </div>
@@ -122,6 +129,7 @@ function App() {
             <DailyJournal
               diaryEntries={diaryEntries}
               onSave={saveDiaryEntry}
+              initialDate={diaryInitialDate}
             />
           </div>
         )}

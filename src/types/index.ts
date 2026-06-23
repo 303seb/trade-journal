@@ -125,6 +125,10 @@ export interface AppSettings {
   timezone: string         // e.g. "America/New_York"
   darkMode: boolean
   dailyReminder: boolean
+  dateFormat: string       // 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD'
+  reduceMotion: boolean
+  weeklySummary: boolean
+  ruleBreakAlerts: boolean
 }
 
 export interface DashTrade {

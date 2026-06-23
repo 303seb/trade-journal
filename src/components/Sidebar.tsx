@@ -13,7 +13,7 @@ const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
   { page: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { page: 'trades',    label: 'Trades',    Icon: ClipboardList   },
   { page: 'analytics', label: 'Analytics', Icon: BarChart2       },
-  { page: 'diary',     label: 'Daily Diary', Icon: BookOpen      },
+  { page: 'diary',     label: 'Daily Journal', Icon: BookOpen     },
   { page: 'news',      label: 'News',      Icon: Newspaper       },
   { page: 'accounts',  label: 'Accounts',  Icon: Wallet          },
   { page: 'settings',  label: 'Settings',  Icon: Settings        },

@@ -5,6 +5,7 @@ import type { DiaryEntries } from '../types'
 interface DailyJournalProps {
   diaryEntries: DiaryEntries
   onSave: (date: string, text: string) => void
+  initialDate?: string
 }
 
 function todayStr() {
@@ -28,11 +29,18 @@ function wordCount(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length
 }
 
-export function DailyJournal({ diaryEntries, onSave }: DailyJournalProps) {
+export function DailyJournal({ diaryEntries, onSave, initialDate }: DailyJournalProps) {
   const today = todayStr()
-  const [selectedDate, setSelectedDate] = useState(today)
-  const [draft, setDraft] = useState(diaryEntries[today] || '')
+  const [selectedDate, setSelectedDate] = useState(initialDate ?? today)
+  const [draft, setDraft] = useState(diaryEntries[initialDate ?? today] || '')
   const textRef = useRef<HTMLTextAreaElement>(null)
+
+  // Jump to a new initialDate when navigated from calendar
+  useEffect(() => {
+    if (initialDate) {
+      setSelectedDate(initialDate)
+    }
+  }, [initialDate])
 
   // Sync draft when selecting a different date
   useEffect(() => {
@@ -83,7 +91,7 @@ export function DailyJournal({ diaryEntries, onSave }: DailyJournalProps) {
         <div style={{ padding: '20px 16px 14px', borderBottom: '1px solid #141414' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <FileText size={16} color="#888" />
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#d0d0d0', letterSpacing: '-0.01em' }}>Daily Diary</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#d0d0d0', letterSpacing: '-0.01em' }}>Daily Journal</span>
           </div>
           <button
             onClick={addTodayEntry}

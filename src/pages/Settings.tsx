@@ -114,6 +114,9 @@ export function Settings({ settings, onUpdate, journalEntries, diaryEntries, tra
   const [clearConfirm, setClearConfirm] = useState(false)
   const [exported, setExported] = useState(false)
   const [imported, setImported] = useState(false)
+  const [fontScale, setFontScale] = useState<number>(() =>
+    parseInt(document.documentElement.style.fontSize || '16')
+  )
 
   const handleExport = () => {
     const data = {
@@ -199,11 +202,14 @@ export function Settings({ settings, onUpdate, journalEntries, diaryEntries, tra
               {(['Small (14px)', 'Normal (16px)', 'Large (18px)'] as const).map((opt, i) => {
                 const sizes = [14, 16, 18]
                 const size = sizes[i]
-                const isActive = parseInt(document.documentElement.style.fontSize || '16') === size
+                const isActive = fontScale === size
                 return (
                   <button
                     key={opt}
-                    onClick={() => { document.documentElement.style.fontSize = `${size}px` }}
+                    onClick={() => {
+                      document.documentElement.style.fontSize = `${size}px`
+                      setFontScale(size)
+                    }}
                     style={{
                       padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                       border: `1px solid ${isActive ? '#4a4a4a' : '#1e1e1e'}`,
@@ -222,8 +228,12 @@ export function Settings({ settings, onUpdate, journalEntries, diaryEntries, tra
           <Toggle
             label="Reduce Motion"
             description="Disables animations and transitions for better readability"
-            checked={false}
-            onChange={() => {}}
+            checked={settings.reduceMotion ?? false}
+            onChange={v => {
+              const next = { ...settings, reduceMotion: v }
+              onUpdate(next)
+              document.documentElement.setAttribute('data-reduce-motion', v ? 'true' : 'false')
+            }}
           />
         </Section>
 
@@ -254,15 +264,18 @@ export function Settings({ settings, onUpdate, journalEntries, diaryEntries, tra
             <div style={{ fontSize: 14, fontWeight: 600, color: '#d0d0d0', marginBottom: 4 }}>Date Format</div>
             <div style={{ display: 'flex', gap: 6 }}>
               {['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'].map(fmt => {
-                const active = fmt === 'MM/DD/YYYY'
+                const active = (settings.dateFormat ?? 'MM/DD/YYYY') === fmt
                 return (
-                  <button key={fmt} style={{
+                  <button key={fmt} onClick={() => onUpdate({ ...settings, dateFormat: fmt })} style={{
                     padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
                     border: `1px solid ${active ? '#4a4a4a' : '#1e1e1e'}`,
                     background: active ? '#1e1e1e' : 'transparent',
                     color: active ? '#f0f0f0' : '#555', cursor: 'pointer',
                     fontFamily: 'inherit', transition: 'all 0.15s',
-                  }}>{fmt}</button>
+                  }}
+                    onMouseEnter={e => { if (!active) e.currentTarget.style.color = '#aaa' }}
+                    onMouseLeave={e => { if (!active) e.currentTarget.style.color = '#555' }}
+                  >{fmt}</button>
                 )
               })}
             </div>
@@ -281,15 +294,15 @@ export function Settings({ settings, onUpdate, journalEntries, diaryEntries, tra
           <Toggle
             label="Weekly Summary"
             description="Send a weekly performance recap every Sunday"
-            checked={false}
-            onChange={() => {}}
+            checked={settings.weeklySummary ?? false}
+            onChange={v => onUpdate({ ...settings, weeklySummary: v })}
           />
           <Divider />
           <Toggle
             label="Rule Break Alerts"
             description="Alert me when I log a trade without following all rules"
-            checked={false}
-            onChange={() => {}}
+            checked={settings.ruleBreakAlerts ?? false}
+            onChange={v => onUpdate({ ...settings, ruleBreakAlerts: v })}
           />
         </Section>
 

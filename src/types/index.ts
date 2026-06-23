@@ -94,6 +94,13 @@ export interface TradeLog {
   bprPresent?: string[]             // e.g. ["BPR (15m)"]
   stdvPresent?: string[]            // e.g. ["STDV (5m)", "STDV -1"]
   otePresent?: string[]             // e.g. ["OTE (1hr)"]
+  propFirm?: string
+  aplusSetup?: string               // 'Yes' | 'No' | ''
+  targetLogic?: string
+  paybackUsed?: string              // 'Yes' | 'No' | ''
+  riskPlacementLogic?: string
+  ipvdPresent?: string              // 'Yes' | 'No' | ''
+  newsImpact?: string
 }
 
 export interface TradingRule {

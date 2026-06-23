@@ -57,6 +57,13 @@ function emptyTrade(): TradeLog {
     bprPresent: [],
     stdvPresent: [],
     otePresent: [],
+    propFirm: '',
+    aplusSetup: '',
+    targetLogic: '',
+    paybackUsed: '',
+    riskPlacementLogic: '',
+    ipvdPresent: '',
+    newsImpact: '',
   }
 }
 function safeEntry(raw: unknown, date: string): JournalEntry {
@@ -132,7 +139,6 @@ const SYMBOLS = ['NQ', 'ES', 'GC', 'MNQ', 'MES', 'MGC']
 const CONFLUENCE_BASES = ['Rejection Block', 'Order Block', 'FVG', 'iFVG', 'CISD', 'BPR', 'STDV', 'OTE']
 const TIMEFRAMES = ['1m', '2m', '3m', '4m', '5m', '15m', '30m', '1hr', '4hr', 'Daily']
 const STDV_LEVELS = ['+0.5', '+1', '+1.5', '+2', '+2.5', '-0.5', '-1', '-1.5', '-2', '-2.5']
-const STDV_CONTEXT_LEVELS = ['-1', '-2 to -2.5', '-4 to -4.5']
 
 const RESULTS: { value: TradeResult; label: string; color: string; bg: string }[] = [
   { value: 'Win',   label: 'Win',   color: '#4ade80', bg: 'rgba(74,222,128,0.12)'  },
@@ -465,245 +471,6 @@ function TFTagPicker({ bases, selected, onChange }: {
   )
 }
 
-// ── Collapsible Section Header ────────────────────────────────────────────────
-
-function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
-  return (
-    <button onClick={onToggle} style={{
-      display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-      background: 'none', border: 'none', cursor: 'pointer', padding: '22px 0 0', margin: 0,
-    }}>
-      <span style={{ fontSize: 13, fontWeight: 700, color: open ? 'var(--text-sub)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', whiteSpace: 'nowrap', transition: 'color 0.15s' }}>{title}</span>
-      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-      <ChevronDown size={13} color="var(--text-dim)" style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
-    </button>
-  )
-}
-
-// ── ICT Context Wizard ────────────────────────────────────────────────────────
-
-type ICTFields = {
-  smtPresent: string[]
-  cisdPresent: string[]
-  displacement: string
-  fvgPresent: string[]
-  ifvgPresent: string[]
-  rejectionBlock: string[]
-  orderBlock: string[]
-  bprPresent: string[]
-  otePresent: string[]
-  stdvPresent: string[]
-}
-
-const ICT_STEPS: { key: keyof ICTFields; label: string; type: 'tf' | 'yesno' | 'stdv'; bases?: string[] }[] = [
-  { key: 'smtPresent',     label: 'SMT Present',     type: 'tf',    bases: ['SMT']  },
-  { key: 'cisdPresent',    label: 'CISD Present',    type: 'tf',    bases: ['CISD'] },
-  { key: 'displacement',   label: 'Displacement',    type: 'yesno'                  },
-  { key: 'fvgPresent',     label: 'FVG Present',     type: 'tf',    bases: ['FVG']  },
-  { key: 'ifvgPresent',    label: 'iFVG Present',    type: 'tf',    bases: ['iFVG'] },
-  { key: 'rejectionBlock', label: 'Rejection Block', type: 'tf',    bases: ['RB']   },
-  { key: 'orderBlock',     label: 'Order Block',     type: 'tf',    bases: ['OB']   },
-  { key: 'bprPresent',     label: 'BPR',             type: 'tf',    bases: ['BPR']  },
-  { key: 'otePresent',     label: 'OTE',             type: 'tf',    bases: ['OTE']  },
-  { key: 'stdvPresent',    label: 'STDV',            type: 'stdv'                   },
-]
-
-function ICTWizard({ fields, onChange }: {
-  fields: ICTFields
-  onChange: (key: string, value: string[] | string) => void
-}) {
-  const [step, setStep] = useState<number | null>(null)
-
-  const toggleTag = (key: string, arr: string[], tag: string) => {
-    onChange(key, arr.includes(tag) ? arr.filter(t => t !== tag) : [...arr, tag])
-  }
-
-  // Build flat list of all selected items with their removal actions
-  const allChips: { label: string; remove: () => void }[] = []
-  if (fields.displacement) {
-    const v = fields.displacement
-    allChips.push({ label: `Displacement: ${v}`, remove: () => onChange('displacement', '') })
-  }
-  const arrFieldKeys = ['smtPresent', 'cisdPresent', 'fvgPresent', 'ifvgPresent', 'rejectionBlock', 'orderBlock', 'bprPresent', 'otePresent', 'stdvPresent'] as const
-  for (const fk of arrFieldKeys) {
-    const arr = (fields[fk] as string[]) || []
-    for (const tag of arr) {
-      const captured = { fk, arr: arr.slice() }
-      allChips.push({ label: tag, remove: () => onChange(captured.fk, captured.arr.filter(t => t !== tag)) })
-    }
-  }
-
-  // Collapsed view
-  if (step === null) {
-    return (
-      <div>
-        {allChips.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-            {allChips.map((chip, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 14, background: 'var(--bg-active)', border: '1px solid var(--border-strong)', color: 'var(--text)' }}>
-                {chip.label}
-                <button onClick={chip.remove} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                ><X size={9} /></button>
-              </span>
-            ))}
-          </div>
-        )}
-        <button
-          onClick={() => setStep(0)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8, border: '1px dashed var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 14, fontWeight: 500, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >{allChips.length > 0 ? '✏ Edit ICT Context' : '+ Add ICT Context'}</button>
-      </div>
-    )
-  }
-
-  // Wizard view
-  const curStep = ICT_STEPS[step]
-  const total = ICT_STEPS.length
-  const pct = Math.round(((step + 1) / total) * 100)
-
-  const stepContent = () => {
-    if (curStep.type === 'yesno') {
-      return (
-        <div style={{ display: 'flex', gap: 5 }}>
-          {(['Yes', 'No'] as const).map(opt => {
-            const active = fields.displacement === opt
-            const col = opt === 'Yes' ? '#4ade80' : '#f87171'
-            return (
-              <button key={opt} onClick={() => onChange('displacement', active ? '' : opt)} style={{
-                padding: '6px 20px', borderRadius: 8, fontSize: 15, fontWeight: 600,
-                border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
-                background: active ? `${col}14` : 'transparent',
-                color: active ? col : 'var(--text-muted)',
-                cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-              }}>{opt}</button>
-            )
-          })}
-        </div>
-      )
-    }
-    if (curStep.type === 'stdv') {
-      const arr = fields.stdvPresent
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Timeframe</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {TIMEFRAMES.map(tf => {
-                const tag = `STDV (${tf})`
-                const sel = arr.includes(tag)
-                return (
-                  <button key={tf} onClick={() => toggleTag('stdvPresent', arr, tag)} style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : 'var(--border)'}`,
-                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : 'var(--text-muted)',
-                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                  }}>{tf}</button>
-                )
-              })}
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Level</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {STDV_CONTEXT_LEVELS.map(lv => {
-                const tag = `STDV ${lv}`
-                const sel = arr.includes(tag)
-                return (
-                  <button key={lv} onClick={() => toggleTag('stdvPresent', arr, tag)} style={{
-                    padding: '4px 10px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-                    border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : 'var(--border)'}`,
-                    background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-                    color: sel ? '#4ade80' : 'var(--text-muted)',
-                    cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                  }}>{lv}</button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )
-    }
-    // tf type
-    const base = curStep.bases![0]
-    const arr = (fields[curStep.key] as string[]) || []
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-        {TIMEFRAMES.map(tf => {
-          const tag = `${base} (${tf})`
-          const sel = arr.includes(tag)
-          return (
-            <button key={tf} onClick={() => toggleTag(curStep.key, arr, tag)} style={{
-              padding: '4px 10px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-              border: `1px solid ${sel ? 'rgba(74,222,128,0.4)' : 'var(--border)'}`,
-              background: sel ? 'rgba(74,222,128,0.1)' : 'transparent',
-              color: sel ? '#4ade80' : 'var(--text-muted)',
-              cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-            }}>{tf}</button>
-          )
-        })}
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-label)' }}>{curStep.label}</span>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>{step + 1} / {total}</span>
-      </div>
-      <div style={{ height: 2, background: 'var(--border)', borderRadius: 999, marginBottom: 12, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: '#4ade80', borderRadius: 999, transition: 'width 0.3s ease' }} />
-      </div>
-      <div style={{ marginBottom: 12 }}>{stepContent()}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button
-          onClick={() => { if (step === 0) setStep(null); else setStep(s => (s ?? 1) - 1) }}
-          style={{ padding: '5px 11px', borderRadius: 7, fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >{step === 0 ? '✕ Close' : '← Back'}</button>
-        <div style={{ flex: 1 }} />
-        {step < total - 1 ? (
-          <>
-            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 11px', borderRadius: 7, fontSize: 14, fontWeight: 500, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-sub)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
-            >Skip</button>
-            <button onClick={() => setStep(s => (s ?? 0) + 1)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 14, fontWeight: 600, border: 'none', background: 'var(--btn-bg)', color: 'var(--btn-text)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--btn-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--btn-bg)' }}
-            >Next →</button>
-          </>
-        ) : (
-          <button onClick={() => setStep(null)} style={{ padding: '5px 14px', borderRadius: 7, fontSize: 14, fontWeight: 600, border: '1px solid rgba(74,222,128,0.3)', background: 'rgba(74,222,128,0.08)', color: '#4ade80', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}>
-            Done ✓
-          </button>
-        )}
-      </div>
-      {allChips.length > 0 && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5 }}>Selected</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {allChips.map((chip, i) => (
-              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 6px 2px 8px', borderRadius: 999, fontSize: 13, background: 'var(--bg-surface)', border: '1px solid var(--border-mid)', color: 'var(--text-label)' }}>
-                {chip.label}
-                <button onClick={chip.remove} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#f87171')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
-                ><X size={8} /></button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
 
 // ── New Trade Modal ───────────────────────────────────────────────────────────
 
@@ -716,7 +483,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
   const [trade, setTrade] = useState<TradeLog>(() => emptyTrade())
   const [date, setDate] = useState(initialDate)
   const [saved, setSaved] = useState(false)
-  const [openSec, setOpenSec] = useState([true, true, true])
+  const [activeTab, setActiveTab] = useState(0)
   const [screenshots, setScreenshots] = useState<string[]>([''])
 
   useEffect(() => {
@@ -724,8 +491,6 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
-
-  const toggleSec = (i: number) => setOpenSec(prev => prev.map((v, j) => j === i ? !v : v))
 
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     setTrade(prev => {
@@ -771,166 +536,174 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     setTimeout(() => onClose(), 700)
   }
 
+  const TABS = ['BASIC TRADE DETAILS', 'ICT / TRADE CONTEXT', 'SCREENSHOTS & NOTES']
+
   return (
     <div
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
     >
-      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 920, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)' }}>
+      <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 1100, maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.9)' }}>
 
         {/* Header */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', flex: 1 }}>New Trade</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', padding: 4, borderRadius: 6, transition: 'color 0.15s' }}
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' as const }}>
+          <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', flexShrink: 0 }}>New Trade</span>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {TABS.map((tab, i) => (
+              <button key={i} onClick={() => setActiveTab(i)} style={{
+                padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.06em', textTransform: 'uppercase' as const,
+                border: `1px solid ${activeTab === i ? 'var(--border-mid)' : 'transparent'}`,
+                background: activeTab === i ? 'var(--bg-active)' : 'transparent',
+                color: activeTab === i ? 'var(--text)' : 'var(--text-dim)',
+                cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+              }}
+                onMouseEnter={e => { if (activeTab !== i) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)' }}
+                onMouseLeave={e => { if (activeTab !== i) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-dim)' }}
+              >{tab}</button>
+            ))}
+          </div>
+          <div style={{ flex: 1 }} />
+          <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+            <button onClick={() => setActiveTab(t => Math.max(0, t - 1))}
+              style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontFamily: 'inherit', lineHeight: 1 }}>&#8249;</button>
+            <button onClick={() => setActiveTab(t => Math.min(2, t + 1))}
+              style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontFamily: 'inherit', lineHeight: 1 }}>&#8250;</button>
+          </div>
+          <button onClick={onClose}
+            style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', flexShrink: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-label)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
+          >Cancel</button>
+          <button onClick={handleSave}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 16px', borderRadius: 7, border: 'none', background: saved ? 'rgba(74,222,128,0.15)' : '#f0f0f0', color: saved ? '#4ade80' : '#111', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', outline: saved ? '1px solid rgba(74,222,128,0.3)' : 'none', flexShrink: 0 }}
+            onMouseEnter={e => { if (!saved) e.currentTarget.style.background = 'var(--btn-hover)' }}
+            onMouseLeave={e => { if (!saved) e.currentTarget.style.background = saved ? 'rgba(74,222,128,0.15)' : '#f0f0f0' }}
+          ><Save size={13} />{saved ? 'Saved!' : 'Add Trade'}</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', padding: 4, borderRadius: 6, transition: 'color 0.15s', flexShrink: 0 }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-sub)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-dim)')}
           ><X size={16} /></button>
         </div>
 
-        {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 28px 24px' }}>
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 28px' }}>
 
-          {/* ── SECTION 1: BASIC TRADE DETAILS ── */}
-          <SectionHeader title="Basic Trade Details" open={openSec[0]} onToggle={() => toggleSec(0)} />
-          {openSec[0] && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 20, paddingBottom: 8 }}>
+          {/* ── TAB 0: BASIC TRADE DETAILS ── */}
+          {activeTab === 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, alignItems: 'start' }}>
 
-              {/* Row 1: Date · Time · Symbol · Account */}
-              <div style={{ display: 'grid', gridTemplateColumns: '140px 110px 120px 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Date')}
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)}
-                    style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              {/* Row 1: Prop Firm | Exit Price | Gross PnL $ | Trade # for day */}
+              <div>
+                {fieldLabel('Prop Firm')}
+                <input value={trade.propFirm || ''} onChange={e => set('propFirm', e.target.value)}
+                  placeholder="e.g. Apex" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Exit Price')}
+                <input type="number" value={trade.exitPrice} onChange={e => set('exitPrice', e.target.value)}
+                  placeholder="0" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Gross PnL $')}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 13px', fontSize: 20, fontWeight: 700, color: hasPnl ? grossColor : 'var(--text-dim)', minHeight: 44, display: 'flex', alignItems: 'center' }}>
+                  {hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—'}
                 </div>
-                <div>
-                  {fieldLabel('Time')}
-                  <input type="time" value={trade.time || ''} onChange={e => set('time', e.target.value)}
-                    style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Symbol')}
-                  <select value={trade.symbol} onChange={e => set('symbol', e.target.value)}
-                    style={{ ...inputBase, cursor: 'pointer' }} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  {fieldLabel('Account')}
-                  {(() => {
-                    const labels = tradingAccounts.length > 0
-                      ? tradingAccounts.map(a => a.name)
-                      : ['Live', 'Funded', 'Eval']
+              </div>
+              <div>
+                {fieldLabel('Trade # for day')}
+                <input type="number" value={trade.tradeNumber} onChange={e => set('tradeNumber', e.target.value)}
+                  placeholder="1" min="1" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+
+              {/* Row 2: Account | Entry Price | Fees $ | Duration (mins) */}
+              <div>
+                {fieldLabel('Account')}
+                {(() => {
+                  const labels = tradingAccounts.length > 0 ? tradingAccounts.map(a => a.name) : ['Live', 'Funded', 'Eval']
+                  return (
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      {labels.map(label => {
+                        const active = (trade.accounts || []).includes(label)
+                        return (
+                          <button key={label} onClick={() => toggleArr('accounts', label)} style={{
+                            padding: '6px 10px', borderRadius: 7, fontSize: 13, fontWeight: 500,
+                            border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                            background: active ? 'var(--bg-active)' : 'transparent',
+                            color: active ? 'var(--text)' : 'var(--text-muted)',
+                            cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                          }}
+                            onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-sub)' }}
+                            onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                          >{label}</button>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
+              </div>
+              <div>
+                {fieldLabel('Entry Price')}
+                <input type="number" value={trade.entryPrice} onChange={e => set('entryPrice', e.target.value)}
+                  placeholder="0" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Fees $')}
+                <input type="number" value={trade.fees} onChange={e => set('fees', e.target.value)}
+                  placeholder="0.00" min="0" step="0.01" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Duration (mins)')}
+                <input value={trade.duration} onChange={e => set('duration', e.target.value)}
+                  placeholder="e.g. 45" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+
+              {/* Row 3: Pair | Direction | Contracts | Result */}
+              <div>
+                {fieldLabel('Pair')}
+                <select value={trade.symbol} onChange={e => set('symbol', e.target.value)}
+                  style={{ ...inputBase, cursor: 'pointer' }}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
+                  <option value="">—</option>
+                  {SYMBOLS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                {fieldLabel('Direction')}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {(['Long', 'Short'] as const).map(side => {
+                    const active = trade.side === side
+                    const col = side === 'Long' ? '#22d3ee' : '#f87171'
                     return (
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {labels.map(label => {
-                          const active = (trade.accounts || []).includes(label)
-                          return (
-                            <button key={label} onClick={() => toggleArr('accounts', label)} style={{
-                              padding: '6px 12px', borderRadius: 8, fontSize: 14, fontWeight: 500,
-                              border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
-                              background: active ? 'var(--bg-active)' : 'transparent',
-                              color: active ? 'var(--text)' : 'var(--text-muted)',
-                              cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                            }}
-                              onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-sub)' }}
-                              onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-                            >{label}</button>
-                          )
-                        })}
-                      </div>
+                      <button key={side} onClick={() => set('side', side)} style={{
+                        flex: 1, padding: '10px 4px', borderRadius: 8, fontSize: 14, fontWeight: 600,
+                        border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
+                        background: active ? `${col}14` : 'transparent',
+                        color: active ? col : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{side}</button>
                     )
-                  })()}
+                  })}
                 </div>
               </div>
-
-              {/* Row 2: Direction · Contracts · Fees · Duration */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Direction')}
-                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                    {(['Long', 'Short'] as const).map(side => {
-                      const active = trade.side === side
-                      const col = side === 'Long' ? '#22d3ee' : '#f87171'
-                      return (
-                        <button key={side} onClick={() => set('side', side)} style={{
-                          flex: 1, borderRadius: 8, fontSize: 14, fontWeight: 600,
-                          border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
-                          background: active ? `${col}14` : 'transparent',
-                          color: active ? col : 'var(--text-dim)',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
-                        >{side}</button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div>
-                  {fieldLabel('Contracts')}
-                  <input type="number" value={trade.contracts} onChange={e => set('contracts', e.target.value)}
-                    placeholder="1" min="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Fees ($)')}
-                  <input type="number" value={trade.fees} onChange={e => set('fees', e.target.value)}
-                    placeholder="0.00" min="0" step="0.01" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Duration')}
-                  <input value={trade.duration} onChange={e => set('duration', e.target.value)}
-                    placeholder="e.g. 45m, 2h" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
+              <div>
+                {fieldLabel('Contracts')}
+                <input type="number" value={trade.contracts} onChange={e => set('contracts', e.target.value)}
+                  placeholder="1" min="0" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
               </div>
-
-              {/* Row 3: Entry · Exit · Target Price · Trade # */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Entry Price')}
-                  <input type="number" value={trade.entryPrice} onChange={e => set('entryPrice', e.target.value)}
-                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Exit Price')}
-                  <input type="number" value={trade.exitPrice} onChange={e => set('exitPrice', e.target.value)}
-                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Target Price')}
-                  <input type="number" value={trade.targetPrice} onChange={e => set('targetPrice', e.target.value)}
-                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Trade # (today)')}
-                  <input type="number" value={trade.tradeNumber} onChange={e => set('tradeNumber', e.target.value)}
-                    placeholder="1" min="1" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-              </div>
-
-              {/* Row 4: TP · SL · Drawdown */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Take Profit (pts)')}
-                  <input type="number" value={trade.takeProfit} onChange={e => set('takeProfit', e.target.value)}
-                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Stop Loss (pts)')}
-                  <input type="number" value={trade.stopLoss} onChange={e => set('stopLoss', e.target.value)}
-                    placeholder="0" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-                <div>
-                  {fieldLabel('Drawdown (pts)')}
-                  <input type="number" value={trade.drawdown} onChange={e => set('drawdown', e.target.value)}
-                    placeholder="0" min="0" step="0.25" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                </div>
-              </div>
-
-              {/* Row 5: Result */}
               <div>
                 {fieldLabel('Result')}
-                <div style={{ display: 'flex', gap: 5 }}>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                   {RESULTS.map(r => (
                     <PillBtn key={r.value} label={r.label} active={trade.result === r.value}
                       onClick={() => set('result', r.value)} activeColor={r.color} activeBg={r.bg} />
@@ -938,254 +711,337 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 </div>
               </div>
 
-              {/* Row 6: Session */}
+              {/* Row 4: Time | Session | Target Price | R Multiple */}
+              <div>
+                {fieldLabel('Time')}
+                <input type="time" value={trade.time || ''} onChange={e => set('time', e.target.value)}
+                  style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
               <div>
                 {fieldLabel('Session')}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {SESSION_OPTIONS.map(s => (
                     <TagChip key={s.value} label={s.label} active={(trade.sessions || []).includes(s.value)} onClick={() => toggleArr('sessions', s.value)} />
                   ))}
                 </div>
               </div>
+              <div>
+                {fieldLabel('Target Price')}
+                <input type="number" value={trade.targetPrice} onChange={e => set('targetPrice', e.target.value)}
+                  placeholder="0" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('R Multiple')}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 13px', fontSize: 20, fontWeight: 700, color: rMultiple !== null ? rColor : 'var(--text-dim)', minHeight: 44, display: 'flex', alignItems: 'center' }}>
+                  {rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—'}
+                </div>
+              </div>
 
-              {/* Auto-Calculated subsection */}
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', marginTop: 4 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Auto-Calculated</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0, borderLeft: '1px solid var(--border)' }}>
-                  {[
-                    { label: 'Gross P&L', value: hasPnl ? (grossPnl >= 0 ? '+' : '') + formatCurrency(grossPnl) : '—', color: hasPnl ? grossColor : 'var(--text-dim)' },
-                    { label: 'Net P&L',   value: hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—',   color: hasPnl ? netColor : 'var(--text-dim)' },
-                    { label: 'R Multiple', value: rMultiple !== null ? `${rMultiple >= 0 ? '+' : ''}${rMultiple}R` : '—', color: rMultiple !== null ? rColor : 'var(--text-dim)' },
-                  ].map(item => (
-                    <div key={item.label} style={{ padding: '0 20px', borderRight: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>{item.label}</div>
-                      <div style={{ fontSize: 28, fontWeight: 700, color: item.color, letterSpacing: '-0.02em' }}>{item.value}</div>
-                    </div>
-                  ))}
+              {/* Row 5: Date | Stop Loss (pts) | Net PnL $ | Grade */}
+              <div>
+                {fieldLabel('Date')}
+                <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                  style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Stop Loss (pts)')}
+                <input type="number" value={trade.stopLoss} onChange={e => set('stopLoss', e.target.value)}
+                  placeholder="0" style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Net PnL $')}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 13px', fontSize: 20, fontWeight: 700, color: hasPnl ? netColor : 'var(--text-dim)', minHeight: 44, display: 'flex', alignItems: 'center' }}>
+                  {hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—'}
+                </div>
+              </div>
+              <div>
+                {fieldLabel('Grade')}
+                <div style={{ background: 'var(--bg)', border: `1px solid ${autoGradeResult ? autoGradeColor + '55' : 'var(--border)'}`, borderRadius: 8, padding: '10px 13px', fontSize: 20, fontWeight: 800, color: autoGradeResult ? autoGradeColor : 'var(--text-dim)', minHeight: 44, display: 'flex', alignItems: 'center', letterSpacing: '-0.02em' }}>
+                  {autoGradeResult?.grade ?? '—'}
                 </div>
               </div>
 
             </div>
           )}
 
-          {/* ── SECTION 2: TRADE CONTEXT ── */}
-          <SectionHeader title="Trade Context" open={openSec[1]} onToggle={() => toggleSec(1)} />
-          {openSec[1] && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 20, paddingBottom: 8 }}>
+          {/* ── TAB 1: ICT / TRADE CONTEXT ── */}
+          {activeTab === 1 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, alignItems: 'start' }}>
 
-              {/* HTF Bias + Market Condition */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('HTF Bias')}
-                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                    {(['Long', 'Short'] as const).map(side => {
-                      const active = trade.htfBias === side
-                      const col = side === 'Long' ? '#22d3ee' : '#f87171'
-                      return (
-                        <button key={side} onClick={() => set('htfBias', active ? '' : side)} style={{
-                          flex: 1, borderRadius: 8, fontSize: 14, fontWeight: 600,
-                          border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
-                          background: active ? `${col}14` : 'transparent',
-                          color: active ? col : 'var(--text-dim)',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
-                        >{side}</button>
-                      )
-                    })}
-                  </div>
+              {/* Row 1: HTF Bias | SMT Present | Rejection Block | Market Condition | News Present */}
+              <div>
+                {fieldLabel('HTF Bias')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Long', 'Short'] as const).map(side => {
+                    const active = trade.htfBias === side
+                    const col = side === 'Long' ? '#22d3ee' : '#f87171'
+                    return (
+                      <button key={side} onClick={() => set('htfBias', active ? '' : side)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
+                        background: active ? `${col}14` : 'transparent',
+                        color: active ? col : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{side}</button>
+                    )
+                  })}
                 </div>
-                <div>
-                  {fieldLabel('Market Condition')}
-                  <div style={{ display: 'flex', gap: 5, height: 36 }}>
-                    {(['Consolidation', 'Distribution'] as const).map(mc => {
-                      const active = trade.marketCondition === mc
-                      return (
-                        <button key={mc} onClick={() => set('marketCondition', active ? '' : mc)} style={{
-                          flex: 1, borderRadius: 8, fontSize: 14, fontWeight: 600,
-                          border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
-                          background: active ? 'var(--bg-active)' : 'transparent',
-                          color: active ? 'var(--text)' : 'var(--text-dim)',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
-                        >{mc}</button>
-                      )
-                    })}
-                  </div>
+              </div>
+              <div>
+                {fieldLabel('SMT Present')}
+                <TFTagPicker bases={['SMT']} selected={trade.smtPresent || []} onChange={v => set('smtPresent', v)} />
+              </div>
+              <div>
+                {fieldLabel('Rejection Block')}
+                <TFTagPicker bases={['RB']} selected={trade.rejectionBlock || []} onChange={v => set('rejectionBlock', v)} />
+              </div>
+              <div>
+                {fieldLabel('Market Condition')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Consolidation', 'Distribution'] as const).map(mc => {
+                    const short = mc === 'Consolidation' ? 'Consol.' : 'Distrib.'
+                    const active = trade.marketCondition === mc
+                    return (
+                      <button key={mc} onClick={() => set('marketCondition', active ? '' : mc)} style={{
+                        flex: 1, padding: '8px 2px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                        border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                        background: active ? 'var(--bg-active)' : 'transparent',
+                        color: active ? 'var(--text)' : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{short}</button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                {fieldLabel('News Present')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Yes', 'No'] as const).map(opt => {
+                    const active = trade.newsPresent === opt
+                    return (
+                      <button key={opt} onClick={() => set('newsPresent', active ? '' : opt)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? (opt === 'Yes' ? '#fbbf2444' : 'var(--border-strong)') : 'var(--border)'}`,
+                        background: active ? (opt === 'Yes' ? '#fbbf2414' : 'var(--bg-active)') : 'transparent',
+                        color: active ? (opt === 'Yes' ? '#fbbf24' : 'var(--text)') : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{opt}</button>
+                    )
+                  })}
                 </div>
               </div>
 
-              {/* Draw on Liquidity */}
+              {/* Row 2: Draw on Liquidity | OB Present | Entry Model | Exit Reason | A+ Setup */}
               <div>
                 {fieldLabel('Draw on Liquidity')}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {MODAL_DOL_OPTIONS.map(d => (
                     <TagChip key={d} label={d} active={(trade.dol || []).includes(d)} onClick={() => toggleArr('dol', d)} />
                   ))}
                 </div>
               </div>
-
-              {/* Internal Range Liquidity */}
               <div>
-                {fieldLabel('Internal Range Liquidity')}
+                {fieldLabel('OB Present')}
+                <TFTagPicker bases={['OB']} selected={trade.orderBlock || []} onChange={v => set('orderBlock', v)} />
+              </div>
+              <div>
+                {fieldLabel('Entry Model')}
+                <input value={trade.entryModel || ''} onChange={e => set('entryModel', e.target.value)}
+                  placeholder="Model name..." style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Exit Reason')}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {EXIT_REASONS.map(r => {
+                    const active = (trade.exitReason || []).includes(r)
+                    return (
+                      <button key={r} onClick={() => toggleArr('exitReason', r)} style={{
+                        padding: '4px 8px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+                        border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                        background: active ? 'var(--bg-active)' : 'transparent',
+                        color: active ? 'var(--text)' : 'var(--text-muted)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' } }}
+                        onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
+                      >{r}</button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                {fieldLabel('A+ Setup')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Yes', 'No'] as const).map(opt => {
+                    const active = trade.aplusSetup === opt
+                    return (
+                      <button key={opt} onClick={() => set('aplusSetup', active ? '' : opt)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? (opt === 'Yes' ? 'rgba(74,222,128,0.4)' : 'var(--border-strong)') : 'var(--border)'}`,
+                        background: active ? (opt === 'Yes' ? 'rgba(74,222,128,0.1)' : 'var(--bg-active)') : 'transparent',
+                        color: active ? (opt === 'Yes' ? '#4ade80' : 'var(--text)') : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{opt}</button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Row 3: Internal Range Liq | FVG Present | Displacement | Setup Type | Target Logic */}
+              <div>
+                {fieldLabel('Internal Range Liq')}
                 <TFTagPicker bases={['FVG']} selected={trade.internalRangeLiquidity || []} onChange={v => set('internalRangeLiquidity', v)} />
               </div>
-
-              {/* External Range Liquidity */}
               <div>
-                {fieldLabel('External Range Liquidity')}
-                <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.externalRangeLiquidity || []} onChange={v => set('externalRangeLiquidity', v)} />
+                {fieldLabel('FVG Present')}
+                <TFTagPicker bases={['FVG']} selected={trade.fvgPresent || []} onChange={v => set('fvgPresent', v)} />
+              </div>
+              <div>
+                {fieldLabel('Displacement')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Yes', 'No'] as const).map(opt => {
+                    const active = trade.displacement === opt
+                    return (
+                      <button key={opt} onClick={() => set('displacement', active ? '' : opt)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                        background: active ? 'var(--bg-active)' : 'transparent',
+                        color: active ? 'var(--text)' : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{opt}</button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                {fieldLabel('Setup Type')}
+                <input value={trade.setupType || ''} onChange={e => set('setupType', e.target.value)}
+                  placeholder="Type..." style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div>
+                {fieldLabel('Target Logic')}
+                <input value={trade.targetLogic || ''} onChange={e => set('targetLogic', e.target.value)}
+                  placeholder="Logic..." style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
               </div>
 
-              {/* Liquidity Swept */}
+              {/* Row 4: External Range Liq | iFVG Present | Payback Used | Risk Placement Logic | (empty) */}
+              <div>
+                {fieldLabel('External Range Liq')}
+                <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.externalRangeLiquidity || []} onChange={v => set('externalRangeLiquidity', v)} />
+              </div>
+              <div>
+                {fieldLabel('iFVG Present')}
+                <TFTagPicker bases={['iFVG']} selected={trade.ifvgPresent || []} onChange={v => set('ifvgPresent', v)} />
+              </div>
+              <div>
+                {fieldLabel('Payback Used')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Yes', 'No'] as const).map(opt => {
+                    const active = trade.paybackUsed === opt
+                    return (
+                      <button key={opt} onClick={() => set('paybackUsed', active ? '' : opt)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                        background: active ? 'var(--bg-active)' : 'transparent',
+                        color: active ? 'var(--text)' : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{opt}</button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                {fieldLabel('Risk Placement Logic')}
+                <input value={trade.riskPlacementLogic || ''} onChange={e => set('riskPlacementLogic', e.target.value)}
+                  placeholder="Logic..." style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              </div>
+              <div />
+
+              {/* Row 5: Liquidity Swept | IPVD Present | Timeframe Used | News Impact | (empty) */}
               <div>
                 {fieldLabel('Liquidity Swept')}
                 <TFTagPicker bases={['Swing High', 'Swing Low']} selected={trade.liquiditySwept || []} onChange={v => set('liquiditySwept', v)} />
               </div>
-
-              {/* ICT Context Wizard (SMT → STDV) */}
               <div>
-                {fieldLabel('ICT Context')}
-                <ICTWizard
-                  fields={{
-                    smtPresent:     trade.smtPresent     || [],
-                    cisdPresent:    trade.cisdPresent    || [],
-                    displacement:   trade.displacement   || '',
-                    fvgPresent:     trade.fvgPresent     || [],
-                    ifvgPresent:    trade.ifvgPresent    || [],
-                    rejectionBlock: trade.rejectionBlock || [],
-                    orderBlock:     trade.orderBlock     || [],
-                    bprPresent:     trade.bprPresent     || [],
-                    otePresent:     trade.otePresent     || [],
-                    stdvPresent:    trade.stdvPresent    || [],
-                  }}
-                  onChange={(k, v) => setTrade(prev => ({ ...prev, [k]: v }))}
-                />
-              </div>
-
-              {/* Timeframe Executed + Exit Reason */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <div>
-                  {fieldLabel('Timeframe Executed On')}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {TIMEFRAMES.map(tf => {
-                      const active = trade.timeframeExecuted === tf
-                      return (
-                        <button key={tf} onClick={() => set('timeframeExecuted', active ? '' : tf)} style={{
-                          padding: '5px 12px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-                          border: `1px solid ${active ? 'rgba(74,222,128,0.4)' : '#222'}`,
-                          background: active ? 'rgba(74,222,128,0.1)' : 'transparent',
-                          color: active ? '#4ade80' : '#666',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' } }}
-                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
-                        >{tf}</button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div>
-                  {fieldLabel('Exit Reason')}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {EXIT_REASONS.map(r => {
-                      const active = (trade.exitReason || []).includes(r)
-                      return (
-                        <button key={r} onClick={() => toggleArr('exitReason', r)} style={{
-                          padding: '5px 12px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-                          border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
-                          background: active ? 'var(--bg-active)' : 'transparent',
-                          color: active ? 'var(--text)' : 'var(--text-muted)',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' } }}
-                          onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
-                        >{r}</button>
-                      )
-                    })}
-                  </div>
+                {fieldLabel('IPVD Present')}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {(['Yes', 'No'] as const).map(opt => {
+                    const active = trade.ipvdPresent === opt
+                    return (
+                      <button key={opt} onClick={() => set('ipvdPresent', active ? '' : opt)} style={{
+                        flex: 1, padding: '8px 4px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+                        border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+                        background: active ? 'var(--bg-active)' : 'transparent',
+                        color: active ? 'var(--text)' : 'var(--text-dim)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
+                        onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
+                      >{opt}</button>
+                    )
+                  })}
                 </div>
               </div>
-
-              {/* News Present */}
               <div>
-                {fieldLabel('News Present')}
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', gap: 5 }}>
-                    {(['Yes', 'No'] as const).map(opt => {
-                      const active = trade.newsPresent === opt
-                      const col = opt === 'Yes' ? '#fbbf24' : '#888'
-                      return (
-                        <button key={opt} onClick={() => set('newsPresent', active ? '' : opt)} style={{
-                          padding: '6px 18px', borderRadius: 8, fontSize: 14, fontWeight: 600,
-                          border: `1px solid ${active ? col + '44' : 'var(--border)'}`,
-                          background: active ? `${col}14` : 'transparent',
-                          color: active ? col : 'var(--text-dim)',
-                          cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                        }}
-                          onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-                          onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-dim)' }}
-                        >{opt}</button>
-                      )
-                    })}
-                  </div>
-                  {trade.newsPresent === 'Yes' && (
-                    <input
-                      value={trade.newsType || ''}
-                      onChange={e => set('newsType', e.target.value)}
-                      placeholder="News event / type…"
-                      style={{ ...inputBase, flex: 1, minWidth: 160 }}
-                      onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')}
-                      onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
-                    />
-                  )}
+                {fieldLabel('Timeframe Used')}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {TIMEFRAMES.map(tf => {
+                    const active = trade.timeframeExecuted === tf
+                    return (
+                      <button key={tf} onClick={() => set('timeframeExecuted', active ? '' : tf)} style={{
+                        padding: '4px 8px', borderRadius: 999, fontSize: 13, fontWeight: 500,
+                        border: `1px solid ${active ? 'rgba(74,222,128,0.4)' : 'var(--border)'}`,
+                        background: active ? 'rgba(74,222,128,0.1)' : 'transparent',
+                        color: active ? '#4ade80' : 'var(--text-muted)',
+                        cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+                      }}
+                        onMouseEnter={e => { if (!active) { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-mid)' } }}
+                        onMouseLeave={e => { if (!active) { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' } }}
+                      >{tf}</button>
+                    )
+                  })}
                 </div>
               </div>
-
-              {/* Auto-Grade subsection */}
-              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Setup Grade — Auto Calculated</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                  <div style={{ fontSize: 52, fontWeight: 800, color: autoGradeColor, letterSpacing: '-0.03em', lineHeight: 1, minWidth: 60 }}>
-                    {autoGradeResult?.grade ?? '—'}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ fontSize: 16, color: 'var(--text-sub)', fontWeight: 500 }}>
-                      {autoGradeResult
-                        ? `${autoGradeResult.score} signal${autoGradeResult.score !== 1 ? 's' : ''} detected`
-                        : 'Fill in trade context fields to generate a grade'}
-                    </div>
-                    <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                      HTF bias · DOL · Liquidity · PD Arrays · Structure · Execution
-                    </div>
-                  </div>
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    {GRADES.map(g => (
-                      <div key={g} style={{
-                        width: 32, height: 32, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 700,
-                        background: autoGradeResult?.grade === g ? `${GRADE_COLORS[g]}20` : 'transparent',
-                        border: `1px solid ${autoGradeResult?.grade === g ? GRADE_COLORS[g] + '55' : 'var(--border)'}`,
-                        color: autoGradeResult?.grade === g ? GRADE_COLORS[g] : 'var(--text-muted)',
-                        transition: 'all 0.2s',
-                      }}>{g}</div>
-                    ))}
-                  </div>
-                </div>
+              <div>
+                {fieldLabel('News Impact')}
+                <input value={trade.newsImpact || ''} onChange={e => set('newsImpact', e.target.value)}
+                  placeholder="Low / Med / High..." style={inputBase}
+                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
               </div>
+              <div />
 
             </div>
           )}
 
-          {/* ── SECTION 3: SCREENSHOTS & NOTES ── */}
-          <SectionHeader title="Screenshots & Notes" open={openSec[2]} onToggle={() => toggleSec(2)} />
-          {openSec[2] && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, paddingTop: 20, paddingBottom: 8 }}>
-
-              {/* Dynamic screenshots */}
+          {/* ── TAB 2: SCREENSHOTS & NOTES ── */}
+          {activeTab === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {screenshots.map((src, idx) => (
                   <ScreenshotUpload
@@ -1214,39 +1070,22 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border)' }}
                 ><Plus size={12} /> Add Screenshot</button>
               </div>
-
-              {/* Notes */}
               <div>
                 {fieldLabel('Notes')}
                 <textarea
                   value={trade.notes || ''}
                   onChange={e => set('notes', e.target.value)}
-                  placeholder="Post-trade reflections, what went well, what to improve…"
+                  placeholder="Post-trade reflections, what went well, what to improve..."
                   rows={4}
                   style={{ ...inputBase, resize: 'vertical', lineHeight: 1.6 }}
                   onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
                 />
               </div>
-
             </div>
           )}
 
           <div style={{ height: 8 }} />
-        </div>
-
-        {/* Footer */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '14px 24px', borderTop: '1px solid var(--border)', background: 'var(--bg-panel)' }}>
-          <button onClick={onClose}
-            style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 15, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-label)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-          >Cancel</button>
-          <button onClick={handleSave}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 22px', borderRadius: 8, border: 'none', background: saved ? 'rgba(74,222,128,0.15)' : '#f0f0f0', color: saved ? '#4ade80' : '#111', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', outline: saved ? '1px solid rgba(74,222,128,0.3)' : 'none' }}
-            onMouseEnter={e => { if (!saved) e.currentTarget.style.background = 'var(--btn-hover)' }}
-            onMouseLeave={e => { if (!saved) e.currentTarget.style.background = saved ? 'rgba(74,222,128,0.15)' : '#f0f0f0' }}
-          ><Save size={13} />{saved ? 'Saved!' : 'Save Trade'}</button>
         </div>
 
       </div>

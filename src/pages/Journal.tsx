@@ -240,23 +240,6 @@ function ScreenshotUpload({ label, preview, onFile, onClear }: {
 
 // ── Shared pill / tag helpers ─────────────────────────────────────────────────
 
-function PillBtn({ label, active, onClick, activeColor, activeBg }: {
-  label: string; active: boolean; onClick: () => void; activeColor: string; activeBg: string
-}) {
-  return (
-    <button onClick={onClick} style={{
-      flex: 1, padding: '8px 4px', borderRadius: 8, fontSize: 15, fontWeight: 600,
-      border: `1px solid ${active ? activeColor + '55' : 'var(--border-mid)'}`,
-      background: active ? activeBg : 'transparent',
-      color: active ? activeColor : 'var(--text-muted)',
-      cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-    }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.color = 'var(--text-sub)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.color = 'var(--text-muted)' }}
-    >{label}</button>
-  )
-}
-
 
 
 // ── New Trade Modal ───────────────────────────────────────────────────────────

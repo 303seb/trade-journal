@@ -479,7 +479,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
               <div>
                 {fieldLabel('Direction')}
                 <select value={trade.side} onChange={e => set('side', e.target.value as 'Long' | 'Short')}
-                  style={{ ...selectBase, color: trade.side === 'Long' ? '#22d3ee' : 'var(--color-loss)' }}
+                  style={{ ...selectBase, color: trade.side === 'Long' ? '#22c55e' : 'var(--color-loss)' }}
                   onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                   <option value="Long">Long</option>
                   <option value="Short">Short</option>
@@ -602,7 +602,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 <div>
                   {fieldLabel('HTF Bias')}
                   <select value={trade.htfBias || ''} onChange={e => set('htfBias', e.target.value)}
-                    style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22d3ee' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
+                    style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22c55e' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                     <option value="">—</option>
                     <option value="Long">Long</option>
@@ -1094,7 +1094,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
           <div>
             {fieldLabel('Direction')}
             <select value={trade.side} onChange={e => set('side', e.target.value as 'Long' | 'Short')}
-              style={{ ...selectBase, color: trade.side === 'Long' ? '#22d3ee' : trade.side === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
+              style={{ ...selectBase, color: trade.side === 'Long' ? '#22c55e' : trade.side === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
               onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
               <option value="">—</option>
               <option value="Long">Long</option>
@@ -1203,7 +1203,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             <div>
               {fieldLabel('HTF Bias')}
               <select value={trade.htfBias || ''} onChange={e => set('htfBias', e.target.value)}
-                style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22d3ee' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
+                style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22c55e' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                 <option value="">—</option>
                 <option value="Long">Long</option>
@@ -1515,9 +1515,9 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
       <span style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
-        background: trade.side === 'Long' ? 'rgba(34,211,238,0.12)' : 'rgba(239,68,68,0.1)',
-        border: `1px solid ${trade.side === 'Long' ? 'rgba(34,211,238,0.25)' : 'rgba(239,68,68,0.2)'}`,
-        color: trade.side === 'Long' ? '#22d3ee' : '#ef4444',
+        background: trade.side === 'Long' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
+        border: `1px solid ${trade.side === 'Long' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`,
+        color: trade.side === 'Long' ? '#22c55e' : '#ef4444',
       }}>{trade.side}</span>
       <span style={{ fontSize: 15, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
       <span style={{ fontSize: 14, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>

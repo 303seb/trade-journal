@@ -32,6 +32,13 @@
   --text-primary: #f2f2f2;
   --text-secondary: #aaaaaa;
   --border-base: #222222;
+  /* win / loss colors */
+  --color-win: #22c55e;
+  --color-win-bg: rgba(34,197,94,0.20);
+  --color-win-border: rgba(34,197,94,0.55);
+  --color-loss: #ef4444;
+  --color-loss-bg: rgba(239,68,68,0.20);
+  --color-loss-border: rgba(239,68,68,0.55);
 }
 
 /* ── Light theme ── */
@@ -60,6 +67,13 @@
   --text-primary: #0d0d0d;
   --text-secondary: #38383f;
   --border-base: #d4d4d8;
+  /* win / loss colors */
+  --color-win: #15803d;
+  --color-win-bg: rgba(21,128,61,0.14);
+  --color-win-border: rgba(21,128,61,0.50);
+  --color-loss: #b91c1c;
+  --color-loss-bg: rgba(185,28,28,0.14);
+  --color-loss-border: rgba(185,28,28,0.50);
 }
 
 [data-theme="light"] body {

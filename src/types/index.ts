@@ -95,6 +95,7 @@ export interface TradeLog {
   stdvPresent?: string[]            // e.g. ["STDV (5m)", "STDV -1"]
   otePresent?: string[]             // e.g. ["OTE (1hr)"]
   propFirm?: string
+  copyTraded?: string               // 'Yes' | 'No' | ''
   aplusSetup?: string               // 'Yes' | 'No' | ''
   targetLogic?: string
   paybackUsed?: string              // 'Yes' | 'No' | ''

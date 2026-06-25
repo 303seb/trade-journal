@@ -7,7 +7,10 @@ import { Analytics } from './pages/Analytics'
 import { Accounts } from './pages/Accounts'
 import { DailyJournal } from './pages/DailyJournal'
 import { Settings } from './pages/Settings'
+import { AuthScreen } from './components/AuthScreen'
 import { useStore } from './store/useStore'
+import { supabase } from './lib/supabase'
+import type { Session } from '@supabase/supabase-js'
 import './index.css'
 
 function Placeholder({ label }: { label: string }) {
@@ -19,10 +22,19 @@ function Placeholder({ label }: { label: string }) {
 }
 
 function App() {
+  const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [page, setPage] = useState<Page>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [journalDate, setJournalDate] = useState<string | undefined>()
   const [diaryInitialDate, setDiaryInitialDate] = useState<string | undefined>()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const {
     journalEntries,
@@ -67,6 +79,20 @@ function App() {
 
   const diaryDates = Object.keys(diaryEntries).filter(k => diaryEntries[k]?.trim())
 
+  // Still checking session
+  if (session === undefined) {
+    return <div style={{ minHeight: '100vh', background: '#0e0e0e' }} />
+  }
+
+  // Not logged in
+  if (session === null) {
+    return <AuthScreen />
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
       <Sidebar
@@ -74,6 +100,8 @@ function App() {
         onNavigate={p => { setPage(p); if (p !== 'trades') setJournalDate(undefined); if (p === 'diary') setDiaryInitialDate(undefined) }}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(v => !v)}
+        onLogout={handleLogout}
+        userEmail={session.user.email}
       />
       <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {page === 'dashboard' && (

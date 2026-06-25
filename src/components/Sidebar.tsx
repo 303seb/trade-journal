@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, TrendingUp, BarChart2, Newspaper, Wallet, Settings, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, TrendingUp, BarChart2, Newspaper, Wallet, Settings, ChevronLeft, ChevronRight, BookOpen, LogOut } from 'lucide-react'
 
 export type Page = 'dashboard' | 'trades' | 'analytics' | 'news' | 'accounts' | 'diary' | 'settings'
 
@@ -7,6 +7,8 @@ interface SidebarProps {
   onNavigate: (page: Page) => void
   collapsed: boolean
   onToggle: () => void
+  onLogout?: () => void
+  userEmail?: string
 }
 
 const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
@@ -19,7 +21,7 @@ const NAV: { page: Page; label: string; Icon: typeof LayoutDashboard }[] = [
   { page: 'settings',  label: 'Settings',  Icon: Settings        },
 ]
 
-export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ page, onNavigate, collapsed, onToggle, onLogout, userEmail }: SidebarProps) {
   return (
     <aside
       style={{
@@ -102,7 +104,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
       )}
 
       {/* Nav */}
-      <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+      <nav style={{ flex: 1, padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden', overflowY: 'auto' }}>
         {NAV.map(({ page: p, label, Icon }) => {
           const active = page === p
           return (
@@ -158,6 +160,38 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: SidebarProps)
           )
         })}
       </nav>
+
+      {/* User / Logout */}
+      {onLogout && (
+        <div style={{ padding: '10px 8px 14px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          {!collapsed && userEmail && (
+            <div style={{
+              fontSize: 13, color: 'var(--text-dim)', fontWeight: 500,
+              padding: '6px 14px 8px', whiteSpace: 'nowrap', overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {userEmail}
+            </div>
+          )}
+          <button
+            onClick={onLogout}
+            title={collapsed ? 'Sign Out' : undefined}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center',
+              gap: 12, padding: collapsed ? '12px 0' : '10px 14px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: 'transparent', color: 'var(--text-muted)',
+              fontSize: 16, fontWeight: 500, transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.color = '#ef4444' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            <LogOut size={17} strokeWidth={1.8} />
+            {!collapsed && <span>Sign Out</span>}
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

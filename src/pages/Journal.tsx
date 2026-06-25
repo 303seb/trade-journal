@@ -1454,7 +1454,9 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
   onToggle: () => void
   COL: string
 }) {
-  const pnl = parseFloat(trade.pnl) || 0
+  const grossPnl = parseFloat(trade.pnl) || 0
+  const fees = parseFloat(trade.fees || '0') || 0
+  const pnl = grossPnl - fees
   const pnlColor = pnl > 0 ? '#22c55e' : pnl < 0 ? '#ef4444' : 'var(--text-muted)'
   const rrVal = calcRR(trade.takeProfit, trade.stopLoss)
   const rrNum = rrVal ? parseFloat(rrVal) : null

@@ -128,26 +128,30 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   }, [allTradesFlat, period, year, month])
 
   // ── Stats ──
-  const totalPnl = filteredTrades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
-  const wins = filteredTrades.filter(t => (parseFloat(t.pnl) || 0) > 0)
-  const losses = filteredTrades.filter(t => (parseFloat(t.pnl) || 0) < 0)
+  const netOf = (t: { pnl: string; fees?: string }) => (parseFloat(t.pnl) || 0) - (parseFloat(t.fees || '0') || 0)
+  const totalPnl = filteredTrades.reduce((s, t) => s + netOf(t), 0)
+  const wins = filteredTrades.filter(t => netOf(t) > 0)
+  const losses = filteredTrades.filter(t => netOf(t) < 0)
   const winRate = filteredTrades.length === 0 ? 0 : (wins.length / filteredTrades.length) * 100
-  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0) / wins.length : 0
-  const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0) / losses.length) : 0
-  const grossProfit = wins.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
-  const grossLoss = Math.abs(losses.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0))
-  const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? 999 : 0) : grossProfit / grossLoss
+  const avgWin = wins.length > 0 ? wins.reduce((s, t) => s + netOf(t), 0) / wins.length : 0
+  const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, t) => s + netOf(t), 0) / losses.length) : 0
+  // grossProfit / grossLoss stat cards use true gross; profitFactor uses net sums
+  const grossProfit = filteredTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
+  const grossLoss = Math.abs(filteredTrades.filter(t => (parseFloat(t.pnl) || 0) < 0).reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0))
+  const netWinSum = wins.reduce((s, t) => s + netOf(t), 0)
+  const netLossSum = Math.abs(losses.reduce((s, t) => s + netOf(t), 0))
+  const profitFactor = netLossSum === 0 ? (netWinSum > 0 ? 999 : 0) : netWinSum / netLossSum
 
   // Best / worst day
   const dayMap = new Map<string, number>()
-  filteredTrades.forEach(t => { dayMap.set(t.date, (dayMap.get(t.date) ?? 0) + (parseFloat(t.pnl) || 0)) })
+  filteredTrades.forEach(t => { dayMap.set(t.date, (dayMap.get(t.date) ?? 0) + netOf(t)) })
   const dayValues = Array.from(dayMap.values())
   const bestDay = dayValues.length > 0 ? Math.max(...dayValues) : 0
   const worstDay = dayValues.length > 0 ? Math.min(...dayValues) : 0
 
   // Largest single win / loss
-  const largestWin = wins.length > 0 ? Math.max(...wins.map(t => parseFloat(t.pnl) || 0)) : 0
-  const largestLoss = losses.length > 0 ? Math.abs(Math.min(...losses.map(t => parseFloat(t.pnl) || 0))) : 0
+  const largestWin = wins.length > 0 ? Math.max(...wins.map(t => netOf(t))) : 0
+  const largestLoss = losses.length > 0 ? Math.abs(Math.min(...losses.map(t => netOf(t)))) : 0
 
   // ── Equity Curve ──
   const sorted = [...filteredTrades].sort((a, b) => {
@@ -158,7 +162,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const equityData = [
     { label: '0', value: 0, idx: 0 },
     ...sorted.map((t, i) => {
-      cum += parseFloat(t.pnl) || 0
+      cum += netOf(t)
       return { label: t.date.slice(5), value: parseFloat(cum.toFixed(2)), idx: i + 1 }
     }),
   ]
@@ -169,7 +173,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const monthlyTrades = period === 'all' ? allTradesFlat : allTradesFlat.filter(t => t.date.startsWith(String(year)))
   monthlyTrades.forEach(t => {
     const key = t.date.slice(0, 7)
-    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + (parseFloat(t.pnl) || 0))
+    monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + netOf(t))
   })
   const monthlyData = Array.from(monthlyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -187,7 +191,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
     const d = new Date(t.date + 'T12:00:00')
     return d.getFullYear() === displayYear && d.getMonth() === displayMonth
   }).forEach(t => {
-    dailyMap.set(t.date, (dailyMap.get(t.date) ?? 0) + (parseFloat(t.pnl) || 0))
+    dailyMap.set(t.date, (dailyMap.get(t.date) ?? 0) + netOf(t))
   })
   const dailyData = Array.from(dailyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
@@ -197,7 +201,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const symbolMap = new Map<string, number>()
   filteredTrades.forEach(t => {
     if (!t.symbol) return
-    symbolMap.set(t.symbol, (symbolMap.get(t.symbol) ?? 0) + (parseFloat(t.pnl) || 0))
+    symbolMap.set(t.symbol, (symbolMap.get(t.symbol) ?? 0) + netOf(t))
   })
   const symbolData = Array.from(symbolMap.entries())
     .map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) }))
@@ -207,7 +211,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const sessionMap = new Map<string, number>()
   filteredTrades.forEach(t => {
     const sessions = (t.sessions || []).length > 0 ? t.sessions : ['Other']
-    sessions.forEach(s => { sessionMap.set(s, (sessionMap.get(s) ?? 0) + (parseFloat(t.pnl) || 0)) })
+    sessions.forEach(s => { sessionMap.set(s, (sessionMap.get(s) ?? 0) + netOf(t)) })
   })
   const sessionData = Array.from(sessionMap.entries())
     .map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) }))
@@ -217,7 +221,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const sessionPerfMap = new Map<string, { pnl: number; wins: number; losses: number; total: number }>()
   filteredTrades.forEach(t => {
     const sessions = (t.sessions || []).length > 0 ? t.sessions : ['Other']
-    const pnl = parseFloat(t.pnl) || 0
+    const pnl = netOf(t)
     sessions.forEach(s => {
       const cur = sessionPerfMap.get(s) ?? { pnl: 0, wins: 0, losses: 0, total: 0 }
       sessionPerfMap.set(s, { pnl: cur.pnl + pnl, wins: cur.wins + (pnl > 0 ? 1 : 0), losses: cur.losses + (pnl < 0 ? 1 : 0), total: cur.total + 1 })
@@ -231,7 +235,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   const confluencePerfMap = new Map<string, { pnl: number; wins: number; total: number }>()
   filteredTrades.forEach(t => {
     const confs = t.confluences || []
-    const pnl = parseFloat(t.pnl) || 0
+    const pnl = netOf(t)
     confs.forEach(c => {
       const cur = confluencePerfMap.get(c) ?? { pnl: 0, wins: 0, total: 0 }
       confluencePerfMap.set(c, { pnl: cur.pnl + pnl, wins: cur.wins + (pnl > 0 ? 1 : 0), total: cur.total + 1 })
@@ -249,7 +253,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   )
   filteredTrades.forEach(t => {
     const pv = PVMAP[t.symbol] ?? 0
-    const sl = parseFloat(t.stopLoss), c = parseFloat(t.contracts), pnl = parseFloat(t.pnl) || 0
+    const sl = parseFloat(t.stopLoss), c = parseFloat(t.contracts), pnl = netOf(t)
     if (!pv || isNaN(sl) || isNaN(c) || c <= 0 || sl === 0) return
     const risk = sl * pv * c
     if (risk === 0) return
@@ -268,7 +272,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   filteredTrades.forEach(t => {
     if (!t.symbol) return
     const cur = symWinMap.get(t.symbol) ?? { wins: 0, total: 0 }
-    symWinMap.set(t.symbol, { wins: cur.wins + ((parseFloat(t.pnl) || 0) > 0 ? 1 : 0), total: cur.total + 1 })
+    symWinMap.set(t.symbol, { wins: cur.wins + (netOf(t) > 0 ? 1 : 0), total: cur.total + 1 })
   })
   const symWinData = Array.from(symWinMap.entries())
     .map(([label, { wins: w, total }]) => ({ label, value: total > 0 ? parseFloat(((w / total) * 100).toFixed(1)) : 0 }))
@@ -280,7 +284,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
   filteredTrades.forEach(t => {
     const dow = new Date(t.date + 'T12:00:00').getDay()
     const cur = dowMap.get(dow)!
-    dowMap.set(dow, { count: cur.count + 1, pnl: cur.pnl + (parseFloat(t.pnl) || 0) })
+    dowMap.set(dow, { count: cur.count + 1, pnl: cur.pnl + netOf(t) })
   })
   const dowData = [1, 2, 3, 4, 5].map(i => ({
     label: DOW[i],
@@ -302,17 +306,18 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
     if (!pv || isNaN(sl) || isNaN(c) || c <= 0 || sl === 0) return
     const risk = sl * pv * c
     if (risk === 0) return
-    cumR += (parseFloat(t.pnl) || 0) / risk
+    cumR += netOf(t) / risk
     rrCount++
     rrData.push({ label: String(rrCount), value: parseFloat(cumR.toFixed(2)) })
   })
+  const avgR = rrCount > 0 ? parseFloat((cumR / rrCount).toFixed(2)) : null
   const rrColor = rrData[rrData.length - 1]?.value >= 0 ? '#22c55e' : '#ef4444'
 
   // ── Per-account stats ──
   const accountStats = tradingAccounts.map(acc => {
     const accTrades = allTradesFlat.filter(t => (t.accounts || []).includes(acc.name))
-    const accPnl = accTrades.reduce((s, t) => s + (parseFloat(t.pnl) || 0), 0)
-    const accWins = accTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length
+    const accPnl = accTrades.reduce((s, t) => s + netOf(t), 0)
+    const accWins = accTrades.filter(t => netOf(t) > 0).length
     const accWr = accTrades.length > 0 ? (accWins / accTrades.length) * 100 : 0
     return { acc, pnl: accPnl, trades: accTrades.length, winRate: accWr }
   })
@@ -421,8 +426,8 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
           <StatCard label="Profit Factor" value={filteredTrades.length === 0 ? '—' : profitFactor >= 999 ? '∞' : profitFactor.toFixed(2)}
             sub={profitFactor >= 1 ? 'Profitable' : filteredTrades.length === 0 ? '' : 'Unprofitable'}
             positive={filteredTrades.length === 0 ? null : profitFactor >= 1} icon={<BarChart2 size={15} />} />
-          <StatCard label="Cumulative R" value={rrData.length < 2 ? '—' : `${rrData[rrData.length - 1].value}R`}
-            sub="reward / risk" positive={rrData.length < 2 ? null : rrData[rrData.length - 1].value >= 0}
+          <StatCard label="Avg R" value={avgR === null ? '—' : `${avgR}R`}
+            sub="per trade" positive={avgR === null ? null : avgR >= 0}
             icon={<TrendingUp size={15} />} />
         </div>
 

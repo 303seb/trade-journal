@@ -5,7 +5,7 @@ export function getDashTrades(entries: JournalEntry[]): DashTrade[] {
     entry.trades.map(t => ({
       id: t.id,
       date: entry.date,
-      pnl: parseFloat(t.pnl) || 0,
+      pnl: (parseFloat(t.pnl) || 0) - (parseFloat(t.fees || '0') || 0),
       result: t.result,
       symbol: t.symbol || '',
       side: (t.side || 'Long') as 'Long' | 'Short',

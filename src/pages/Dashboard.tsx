@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity, Calendar, X, AlertTriangle } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
@@ -55,6 +55,22 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
+  const [nyTime, setNyTime] = useState('')
+
+  useEffect(() => {
+    const update = () => {
+      setNyTime(new Date().toLocaleTimeString('en-US', {
+        timeZone: 'America/New_York',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }))
+    }
+    update()
+    const id = setInterval(update, 1000)
+    return () => clearInterval(id)
+  }, [])
   const [popupDate, setPopupDate] = useState<string | null>(null)
   const [recentTradePopup, setRecentTradePopup] = useState<{ trade: TradeLog; date: string } | null>(null)
 
@@ -88,7 +104,15 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '22px 28px 32px' }}>
 
       {/* Action row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* NY Time clock */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+            {nyTime || '—'}
+          </span>
+          <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600, marginTop: 2, letterSpacing: '0.04em' }}>ET · New York</span>
+        </div>
+
         <button
           onClick={() => onNavigateToJournal(todayStr)}
           style={{

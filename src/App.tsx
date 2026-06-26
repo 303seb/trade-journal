@@ -37,6 +37,7 @@ function App() {
   }, [])
 
   const {
+    loading: storeLoading,
     journalEntries,
     monthlyGoals,
     confluenceTags,
@@ -60,7 +61,7 @@ function App() {
     deleteDiaryTemplate,
     appSettings,
     updateAppSettings,
-  } = useStore()
+  } = useStore(session?.user.id ?? '')
 
   // Apply theme on mount and when settings change
   useEffect(() => {
@@ -91,6 +92,18 @@ function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+  }
+
+  if (storeLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0e0e0e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 32, height: 32, border: '2px solid #2a2a2a', borderTopColor: '#e8e8e8', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 14px' }} />
+          <p style={{ color: '#505050', fontSize: 15 }}>Loading your data…</p>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
   }
 
   return (

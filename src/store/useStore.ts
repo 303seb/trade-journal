@@ -49,6 +49,7 @@ export function useStore(userId: string) {
 
   // Load from Supabase on mount; migrate localStorage if first login
   useEffect(() => {
+    if (!userId) return  // wait until we have a real user ID
     const load = async () => {
       const { data, error } = await supabase
         .from('user_data')

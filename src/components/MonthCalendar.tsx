@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { getDayPnl, hasDayTrades, formatCurrency } from '../utils/stats'
 import type { DashTrade, JournalEntry } from '../types'
+import { useMobile } from '../hooks/useMobile'
 
 interface MonthCalendarProps {
   year: number
@@ -15,6 +16,7 @@ interface MonthCalendarProps {
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
 
@@ -33,7 +35,15 @@ function calcDayR(trades: JournalEntry['trades']): number | null {
   return hasAny ? total : null
 }
 
+function fmtPnlShort(pnl: number): string {
+  const abs = Math.abs(pnl)
+  const sign = pnl >= 0 ? '+' : '-'
+  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`
+  return `${sign}$${Math.round(abs)}`
+}
+
 export function MonthCalendar({ year, month, trades, journalEntries, diaryDates, onDayClick, onDiaryClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
+  const isMobile = useMobile()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayStr = new Date().toISOString().split('T')[0]
@@ -45,6 +55,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
   const monthPnl = monthTrades.reduce((s, t) => s + t.pnl, 0)
   const monthTradeCount = monthTrades.length
   const monthLabel = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const monthLabelShort = new Date(year, month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 
   const cells: (number | null)[] = [...Array(firstDay).fill(null)]
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
@@ -56,79 +67,114 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
   const pad = (n: number) => String(n).padStart(2, '0')
 
   const navBtnStyle: React.CSSProperties = {
-    padding: '5px 8px', borderRadius: 8,
+    padding: isMobile ? '4px 5px' : '5px 8px', borderRadius: 8,
     background: 'var(--bg-hover)', border: '1px solid var(--border-mid)',
     color: 'var(--text-muted)', cursor: 'pointer', display: 'flex',
     alignItems: 'center', transition: 'all 0.15s',
   }
 
-  const colTemplate = 'repeat(8, 1fr)'
+  const colTemplate = isMobile ? 'repeat(7, 1fr)' : 'repeat(8, 1fr)'
 
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 20px 18px' }}>
+    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 10px 10px' : '20px 20px 18px' }}>
 
-      {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Trade Calendar</h3>
-
-        {/* Month navigation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={onPrevMonth}
-            style={navBtnStyle}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-          >
-            <ChevronLeft size={13} strokeWidth={2} />
-          </button>
-          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-sub)', minWidth: 120, textAlign: 'center' }}>
-            {monthLabel}
-          </span>
-          <button
-            onClick={onNextMonth}
-            style={navBtnStyle}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-          >
-            <ChevronRight size={13} strokeWidth={2} />
-          </button>
-        </div>
-
-        {/* Month P&L + trade count */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-            <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Monthly Profit</span>
-            <span style={{
-              fontSize: 18, fontWeight: 700,
-              color: monthTradeCount === 0 ? '#333' : monthPnl >= 0 ? '#22c55e' : '#ef4444',
-            }}>
-              {monthTradeCount === 0 ? '—' : (monthPnl >= 0 ? '+' : '') + formatCurrency(monthPnl)}
-            </span>
-          </div>
-          <div style={{ width: 1, height: 28, background: 'var(--border-mid)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-            <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Total Trades</span>
-            <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-sub)' }}>
-              {monthTradeCount}
-            </span>
+      {/* Header */}
+      {isMobile ? (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Trade Calendar</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={onPrevMonth}
+                style={navBtnStyle}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+              >
+                <ChevronLeft size={11} strokeWidth={2} />
+              </button>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-sub)', textAlign: 'center' }}>
+                {monthLabelShort}
+              </span>
+              <button
+                onClick={onNextMonth}
+                style={navBtnStyle}
+                onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+              >
+                <ChevronRight size={11} strokeWidth={2} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>P&L</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: monthTradeCount === 0 ? '#333' : monthPnl >= 0 ? '#22c55e' : '#ef4444' }}>
+                  {monthTradeCount === 0 ? '—' : (monthPnl >= 0 ? '+' : '') + formatCurrency(monthPnl)}
+                </span>
+              </div>
+              <div style={{ width: 1, height: 20, background: 'var(--border-mid)' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                <span style={{ fontSize: 9, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Trades</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-sub)' }}>{monthTradeCount}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Trade Calendar</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              onClick={onPrevMonth}
+              style={navBtnStyle}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+            >
+              <ChevronLeft size={13} strokeWidth={2} />
+            </button>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-sub)', minWidth: 120, textAlign: 'center' }}>
+              {monthLabel}
+            </span>
+            <button
+              onClick={onNextMonth}
+              style={navBtnStyle}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+            >
+              <ChevronRight size={13} strokeWidth={2} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+              <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Monthly Profit</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: monthTradeCount === 0 ? '#333' : monthPnl >= 0 ? '#22c55e' : '#ef4444' }}>
+                {monthTradeCount === 0 ? '—' : (monthPnl >= 0 ? '+' : '') + formatCurrency(monthPnl)}
+              </span>
+            </div>
+            <div style={{ width: 1, height: 28, background: 'var(--border-mid)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+              <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Total Trades</span>
+              <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-sub)' }}>{monthTradeCount}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Weekday headers + Week column header */}
-      <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 4, marginBottom: 6 }}>
-        {WEEKDAYS.map(d => (
-          <div key={d} style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', padding: '4px 0 4px 7px' }}>
+      {/* Weekday headers */}
+      <div style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: isMobile ? 2 : 4, marginBottom: isMobile ? 3 : 6 }}>
+        {(isMobile ? WEEKDAYS_SHORT : WEEKDAYS).map((d, i) => (
+          <div key={i} style={{ fontSize: isMobile ? 10 : 14, fontWeight: 700, color: 'var(--text-dim)', padding: isMobile ? '2px 0 2px 2px' : '4px 0 4px 7px' }}>
             {d}
           </div>
         ))}
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', padding: '4px 0', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          Week
-        </div>
+        {!isMobile && (
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', padding: '4px 0', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Week
+          </div>
+        )}
       </div>
 
       {/* Calendar rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 4 }}>
         {weeks.map((week, wi) => {
           const weekDays = week.filter((d): d is number => d !== null)
           const weekDateStrs = weekDays.map(d => `${year}-${pad(month + 1)}-${pad(d)}`)
@@ -152,7 +198,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
             : 'var(--border)'
 
           return (
-            <div key={wi} style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: 4 }}>
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: isMobile ? 2 : 4 }}>
               {week.map((day, di) => {
                 if (day === null) return <div key={`e-${wi}-${di}`} />
 
@@ -192,9 +238,11 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                     key={dateStr}
                     onClick={() => onDayClick(dateStr)}
                     style={{
-                      borderRadius: 10, padding: '8px 7px 7px', minHeight: 100,
+                      borderRadius: isMobile ? 5 : 10,
+                      padding: isMobile ? '4px 3px 3px' : '8px 7px 7px',
+                      minHeight: isMobile ? 46 : 100,
                       display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                      justifyContent: 'flex-start', gap: 2,
+                      justifyContent: 'flex-start', gap: 1,
                       background: cellBg,
                       border: `1px solid ${isToday ? '#4a4a4a' : cellBorder}`,
                       cursor: 'pointer',
@@ -208,10 +256,10 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                     onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? 'var(--border-strong)' : cellBorder; e.currentTarget.style.background = cellBg }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                      <span style={{ fontSize: 16, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>
+                      <span style={{ fontSize: isMobile ? 10 : 16, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>
                         {day}
                       </span>
-                      {hasDiary && (
+                      {!isMobile && hasDiary && (
                         <button
                           onClick={e => { e.stopPropagation(); onDiaryClick?.(dateStr) }}
                           title="Open Daily Journal"
@@ -223,18 +271,20 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                     </div>
                     {hasData && (
                       <>
-                        <span style={{ fontSize: 15, fontWeight: 800, color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#888', lineHeight: 1, marginTop: 2 }}>
-                          {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                        <span style={{ fontSize: isMobile ? 9 : 15, fontWeight: 800, color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#888', lineHeight: 1, marginTop: 1 }}>
+                          {isMobile ? fmtPnlShort(pnl) : (pnl >= 0 ? '+' : '') + formatCurrency(pnl)}
                         </span>
-                        {dayR !== null && (
+                        {!isMobile && dayR !== null && (
                           <span style={{ fontSize: 14, fontWeight: 700, color: dayR > 0 ? '#22c55e' : dayR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>
                             {dayR >= 0 ? '+' : ''}{dayR.toFixed(1)}R
                           </span>
                         )}
-                        <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
-                          {count} trade{count !== 1 ? 's' : ''}
-                        </span>
-                        {wlbeParts.length > 0 && (
+                        {!isMobile && (
+                          <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
+                            {count} trade{count !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {!isMobile && wlbeParts.length > 0 && (
                           <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1, marginTop: 1 }}>
                             {wlbeParts.join(' - ')}
                           </span>
@@ -245,56 +295,58 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                 )
               })}
 
-              {/* Weekly stats cell */}
-              <div style={{
-                borderRadius: 10, padding: '8px 10px', minHeight: 100,
-                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                justifyContent: 'flex-start', gap: 3,
-                background: weekBg,
-                border: `1px solid ${weekBorder}`,
-                borderLeft: `2px solid ${weekHasData ? (weekPnl > 0 ? 'rgba(52,211,153,0.4)' : weekPnl < 0 ? 'rgba(239,68,68,0.4)' : '#2a2a2a') : '#1a1a1a'}`,
-              }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1 }}>
-                  WK {wi + 1}
-                </span>
-                {weekHasData ? (
-                  <>
-                    <span style={{ fontSize: 15, fontWeight: 800, color: weekPnlColor, lineHeight: 1, marginTop: 2 }}>
-                      {weekPnl >= 0 ? '+' : ''}{formatCurrency(weekPnl)}
-                    </span>
-                    {weekR !== null && (
-                      <span style={{ fontSize: 14, fontWeight: 700, color: weekR > 0 ? '#22c55e' : weekR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>
-                        {weekR >= 0 ? '+' : ''}{weekR.toFixed(1)}R
+              {/* Weekly stats cell — desktop only */}
+              {!isMobile && (
+                <div style={{
+                  borderRadius: 10, padding: '8px 10px', minHeight: 100,
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  justifyContent: 'flex-start', gap: 3,
+                  background: weekBg,
+                  border: `1px solid ${weekBorder}`,
+                  borderLeft: `2px solid ${weekHasData ? (weekPnl > 0 ? 'rgba(52,211,153,0.4)' : weekPnl < 0 ? 'rgba(239,68,68,0.4)' : '#2a2a2a') : '#1a1a1a'}`,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1 }}>
+                    WK {wi + 1}
+                  </span>
+                  {weekHasData ? (
+                    <>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: weekPnlColor, lineHeight: 1, marginTop: 2 }}>
+                        {weekPnl >= 0 ? '+' : ''}{formatCurrency(weekPnl)}
                       </span>
-                    )}
-                    <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
-                      {weekCount} trade{weekCount !== 1 ? 's' : ''}
-                    </span>
-                    {weekWLBE.length > 0 && (
-                      <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1, marginTop: 1 }}>
-                        {weekWLBE.join(' - ')}
+                      {weekR !== null && (
+                        <span style={{ fontSize: 14, fontWeight: 700, color: weekR > 0 ? '#22c55e' : weekR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>
+                          {weekR >= 0 ? '+' : ''}{weekR.toFixed(1)}R
+                        </span>
+                      )}
+                      <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
+                        {weekCount} trade{weekCount !== 1 ? 's' : ''}
                       </span>
-                    )}
-                  </>
-                ) : (
-                  <span style={{ fontSize: 14, color: 'var(--border-mid)', marginTop: 4 }}>—</span>
-                )}
-              </div>
+                      {weekWLBE.length > 0 && (
+                        <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1, marginTop: 1 }}>
+                          {weekWLBE.join(' - ')}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ fontSize: 14, color: 'var(--border-mid)', marginTop: 4 }}>—</span>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
       </div>
 
       {/* Color key */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 22, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: isMobile ? 14 : 22, marginTop: isMobile ? 10 : 16, paddingTop: isMobile ? 8 : 14, borderTop: '1px solid var(--border)' }}>
         {[
           { bg: 'rgba(52,211,153,0.2)', border: 'rgba(52,211,153,0.3)', label: 'Win' },
           { bg: 'rgba(239,68,68,0.2)', border: 'rgba(239,68,68,0.3)', label: 'Loss' },
           { bg: 'var(--bg-hover)', border: 'var(--border-mid)', label: 'Breakeven' },
         ].map(({ bg, border, label }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
-            <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 600 }}>{label}</span>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 6 }}>
+            <div style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, borderRadius: 3, background: bg, border: `1px solid ${border}` }} />
+            <span style={{ fontSize: isMobile ? 11 : 14, color: 'var(--text-dim)', fontWeight: 600 }}>{label}</span>
           </div>
         ))}
       </div>

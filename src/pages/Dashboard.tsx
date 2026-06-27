@@ -142,7 +142,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}
         >
           <NotebookPen size={15} />
-          Add Journal Entry
+          {isMobile ? 'Log Trade' : 'Add Journal Entry'}
         </button>
       </div>
 
@@ -195,12 +195,12 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
       {/* Quote */}
       <div style={{
         background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14,
-        padding: '20px 28px', textAlign: 'center',
+        padding: isMobile ? '12px 14px' : '20px 28px', textAlign: 'center',
       }}>
-        <p style={{ fontSize: 18, color: 'var(--text-sub)', fontStyle: 'italic', lineHeight: 1.7, margin: 0 }}>
+        <p style={{ fontSize: isMobile ? 13 : 18, color: 'var(--text-sub)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
           &ldquo;{quote.text}&rdquo;
         </p>
-        <p style={{ fontSize: 15, color: 'var(--text-muted)', margin: '10px 0 0' }}>— {quote.author}</p>
+        <p style={{ fontSize: isMobile ? 11 : 15, color: 'var(--text-muted)', margin: isMobile ? '6px 0 0' : '10px 0 0' }}>— {quote.author}</p>
       </div>
 
       {/* Monthly Milestone */}
@@ -249,17 +249,19 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
         }
 
         return (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 20px 16px' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 12px 10px' : '20px 20px 16px' }}>
+            <h3 style={{ fontSize: isMobile ? 12 : 16, fontWeight: 700, color: 'var(--text-muted)', margin: isMobile ? '0 0 10px' : '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               Recent Trades
             </h3>
 
-            {/* Column headers */}
-            <div style={{ display: 'grid', gridTemplateColumns: '110px 70px 70px 1fr 80px', gap: 12, padding: '0 14px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
-              {['Date', 'Contract', 'Result', 'P&L', 'R:R'].map(h => (
-                <span key={h} style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
-              ))}
-            </div>
+            {/* Column headers — desktop only */}
+            {!isMobile && (
+              <div style={{ display: 'grid', gridTemplateColumns: '110px 70px 70px 1fr 80px', gap: 12, padding: '0 14px 8px', marginBottom: 4, borderBottom: '1px solid var(--border)' }}>
+                {['Date', 'Contract', 'Result', 'P&L', 'R:R'].map(h => (
+                  <span key={h} style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{h}</span>
+                ))}
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
               {recentTrades.map(({ trade: t, date }, idx) => {
@@ -274,7 +276,28 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
                 const style = RESULT_BG[t.result] ?? RESULT_BG.BE
                 const dateShort = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-                return (
+                return isMobile ? (
+                  <div
+                    key={`${date}-${t.id}-${idx}`}
+                    onClick={() => setRecentTradePopup({ trade: t, date })}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8,
+                      background: style.bg, border: `1px solid ${style.border}`,
+                      cursor: 'pointer', transition: 'filter 0.12s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.5)')}
+                    onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-label)' }}>{t.symbol || '—'}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 1 }}>{dateShort}</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: pnlColor }}>
+                      {t.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: style.color, minWidth: 40, textAlign: 'right' }}>{t.result}</span>
+                  </div>
+                ) : (
                   <div
                     key={`${date}-${t.id}-${idx}`}
                     onClick={() => setRecentTradePopup({ trade: t, date })}

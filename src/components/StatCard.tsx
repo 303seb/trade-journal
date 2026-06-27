@@ -1,3 +1,5 @@
+import { useMobile } from '../hooks/useMobile'
+
 interface StatCardProps {
   label: string
   value: string
@@ -7,6 +9,7 @@ interface StatCardProps {
 }
 
 export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
+  const isMobile = useMobile()
   const valueColor =
     positive === null || positive === undefined
       ? 'var(--text)'
@@ -28,10 +31,10 @@ export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
         border: '1px solid var(--border)',
         borderLeft: `3px solid ${accentColor}`,
         borderRadius: 14,
-        padding: '18px 18px 16px',
+        padding: isMobile ? '9px 8px 7px' : '18px 18px 16px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: isMobile ? 4 : 12,
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       }}
@@ -45,16 +48,16 @@ export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <span style={{ fontSize: isMobile ? 9 : 13, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {label}
         </span>
-        <span style={{ color: 'var(--border-strong)' }}>{icon}</span>
+        {!isMobile && <span style={{ color: 'var(--border-strong)' }}>{icon}</span>}
       </div>
       <div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: valueColor, letterSpacing: '-0.02em', lineHeight: 1 }}>
+        <div style={{ fontSize: isMobile ? 14 : 28, fontWeight: 800, color: valueColor, letterSpacing: '-0.02em', lineHeight: 1 }}>
           {value}
         </div>
-        {sub && (
+        {sub && !isMobile && (
           <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 7 }}>{sub}</div>
         )}
       </div>

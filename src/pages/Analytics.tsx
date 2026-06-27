@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useMobile } from '../hooks/useMobile'
 import { ChevronLeft, ChevronRight, TrendingUp, BarChart2, DollarSign, Award, Activity, Target, Calendar, Zap } from 'lucide-react'
 import {
   LineChart, Line, BarChart, Bar,
@@ -68,6 +69,7 @@ interface AnalyticsProps {
 type Period = 'all' | 'year' | 'month'
 
 export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
+  const isMobile = useMobile()
   const now = new Date()
   const [period, setPeriod] = useState<Period>('all')
   const [year, setYear] = useState(now.getFullYear())
@@ -329,7 +331,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
 
   return (
     <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
-      <div style={{ maxWidth: 1300, margin: '0 auto', padding: '28px 32px 52px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ maxWidth: 1300, margin: '0 auto', padding: isMobile ? '14px 12px 32px' : '28px 32px 52px', display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 20 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -416,7 +418,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         )}
 
         {/* ── Stats row 1 ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
           <StatCard label="Total P&L" value={filteredTrades.length === 0 ? '—' : (totalPnl >= 0 ? '+' : '') + formatCurrency(totalPnl)}
             sub={`${filteredTrades.length} trade${filteredTrades.length !== 1 ? 's' : ''}`}
             positive={filteredTrades.length === 0 ? null : totalPnl >= 0} icon={<DollarSign size={15} />} />
@@ -432,7 +434,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Stats row 2 ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
           <StatCard label="Best Day" value={bestDay === 0 && dayValues.length === 0 ? '—' : (bestDay >= 0 ? '+' : '') + formatCurrency(bestDay)}
             positive={dayValues.length === 0 ? null : true} icon={<Zap size={15} />} />
           <StatCard label="Worst Day" value={worstDay === 0 && dayValues.length === 0 ? '—' : (worstDay >= 0 ? '+' : '') + formatCurrency(worstDay)}
@@ -446,7 +448,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Additional stats row ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 12 }}>
           <StatCard label="Largest Win" value={largestWin === 0 ? '—' : '+' + formatCurrency(largestWin)} positive={largestWin === 0 ? null : true} icon={<TrendingUp size={15} />} />
           <StatCard label="Largest Loss" value={largestLoss === 0 ? '—' : '-' + formatCurrency(largestLoss)} positive={largestLoss === 0 ? null : false} icon={<Activity size={15} />} />
           <StatCard label="Gross Profit" value={grossProfit === 0 ? '—' : '+' + formatCurrency(grossProfit)} positive={grossProfit === 0 ? null : true} icon={<DollarSign size={15} />} />
@@ -486,7 +488,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Monthly P&L + Daily P&L ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           <div style={CARD}>
             <p style={CHART_TITLE}>Monthly P&L</p>
             {monthlyData.length === 0 ? EMPTY_CHART : (
@@ -523,7 +525,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── P&L by Symbol + P&L by Session ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           <div style={CARD}>
             <p style={CHART_TITLE}>P&L by Symbol</p>
             {symbolData.length === 0 ? EMPTY_CHART : (
@@ -658,7 +660,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Win Rate by Symbol + P&L by Day of Week ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           <div style={CARD}>
             <p style={CHART_TITLE}>Win Rate by Symbol</p>
             {symWinData.length === 0 ? EMPTY_CHART : (
@@ -695,7 +697,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Trade Count by Day of Week + Result Distribution ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
           <div style={CARD}>
             <p style={CHART_TITLE}>Trade Volume by Day of Week</p>
             {dowData.every(d => d.count === 0) ? EMPTY_CHART : (

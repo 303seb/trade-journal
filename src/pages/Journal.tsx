@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import type { JournalEntry, TradeLog, TradeResult, TradingRule, TradingAccount } from '../types'
 import { formatCurrency } from '../utils/stats'
+import { useMobile } from '../hooks/useMobile'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -918,6 +919,7 @@ interface FormProps {
 }
 
 function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, onDelete, onClose, tradingAccounts }: FormProps) {
+  const isMobile = useMobile()
   const [htfPreview, setHtfPreview] = useState<string | null>(trade.htfImgKey?.startsWith('data:') ? trade.htfImgKey : null)
   const [execPreview, setExecPreview] = useState<string | null>(trade.execImgKey?.startsWith('data:') ? trade.execImgKey : null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -982,8 +984,8 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   const autoGradeResultInline = calcSetupGrade(trade)
 
   return (
-    <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-panel)', padding: '26px 36px 32px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+    <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-panel)', padding: isMobile ? '14px 12px 20px' : '26px 36px 32px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 22 }}>
 
         {/* ── Top controls row ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -1004,7 +1006,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
         </div>
 
         {/* ── Basic Trade Details 5×5 ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: isMobile ? 10 : 14 }}>
 
           {/* Row 1: Date | Time | Symbol | Account | Prop Firm */}
           <div>
@@ -1165,7 +1167,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
         {/* ── ICT / Trade Context 5×5 ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.09em', paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>ICT / Trade Context</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: isMobile ? 10 : 14 }}>
 
             {/* Row 1: HTF Bias | Draw on Liquidity | Internal Range Liq | External Range Liq | Liquidity Swept */}
             <div>
@@ -1429,7 +1431,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
         </div>
 
         {/* ── Row 4: Screenshots ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 12 : 24 }}>
           <ScreenshotUpload label="HTF Chart" preview={htfPreview}
             onFile={url => { setHtfPreview(url); set('htfImgKey', url) }}
             onClear={() => { setHtfPreview(null); set('htfImgKey', undefined) }}
@@ -1447,12 +1449,13 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
 
 // ── Summary Row ───────────────────────────────────────────────────────────────
 
-function SummaryRow({ trade, date, expanded, onToggle, COL }: {
+function SummaryRow({ trade, date, expanded, onToggle, COL, isMobile }: {
   trade: TradeLog & { date: string }
   date: string
   expanded: boolean
   onToggle: () => void
   COL: string
+  isMobile?: boolean
 }) {
   const grossPnl = parseFloat(trade.pnl) || 0
   const fees = parseFloat(trade.fees || '0') || 0
@@ -1472,7 +1475,7 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
       onClick={onToggle}
       style={{
         display: 'grid', gridTemplateColumns: COL,
-        padding: '10px 36px', alignItems: 'center',
+        padding: isMobile ? '10px 12px' : '10px 36px', alignItems: 'center',
         cursor: 'pointer', transition: 'background 0.1s',
         borderLeft: `2px solid ${expanded ? 'var(--border-strong)' : 'transparent'}`,
         background: expanded ? 'var(--bg-active)' : 'transparent',
@@ -1480,36 +1483,55 @@ function SummaryRow({ trade, date, expanded, onToggle, COL }: {
       onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = 'var(--bg-hover)' }}
       onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent' }}
     >
-      <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>{dateLabel}</span>
-      <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
-        background: trade.side === 'Long' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
-        border: `1px solid ${trade.side === 'Long' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`,
-        color: trade.side === 'Long' ? '#22c55e' : '#ef4444',
-      }}>{trade.side}</span>
-      <span style={{ fontSize: 15, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
-      <span style={{ fontSize: 14, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>
-      <span style={{ fontSize: 16, fontWeight: 700, color: pnlColor }}>
-        {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
-      </span>
-      <span style={{ fontSize: 15, fontWeight: 700, color: rrColor }}>
-        {rrVal ? `${rrNum! >= 0 ? '+' : ''}${rrVal}R` : '—'}
-      </span>
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        padding: '3px 8px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
-        background: `${rc}18`, border: `1px solid ${rc}44`, color: rc,
-      }}>{trade.result}</span>
-      {gc ? (
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          padding: '3px 8px', borderRadius: 6, fontSize: 14, fontWeight: 700, width: 'fit-content',
-          background: `${gc}18`, border: `1px solid ${gc}44`, color: gc,
-        }}>{trade.grade}</span>
+      {isMobile ? (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{dateLabel}</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
+          </div>
+          <span style={{ fontSize: 15, fontWeight: 700, color: pnlColor }}>
+            {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
+          </span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '2px 6px', borderRadius: 999, fontSize: 11, fontWeight: 700, width: 'fit-content',
+            background: `${rc}18`, border: `1px solid ${rc}44`, color: rc,
+          }}>{trade.result}</span>
+        </>
       ) : (
-        <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>—</span>
+        <>
+          <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>{dateLabel}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
+            background: trade.side === 'Long' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
+            border: `1px solid ${trade.side === 'Long' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`,
+            color: trade.side === 'Long' ? '#22c55e' : '#ef4444',
+          }}>{trade.side}</span>
+          <span style={{ fontSize: 15, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
+          <span style={{ fontSize: 14, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: pnlColor }}>
+            {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
+          </span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: rrColor }}>
+            {rrVal ? `${rrNum! >= 0 ? '+' : ''}${rrVal}R` : '—'}
+          </span>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            padding: '3px 8px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
+            background: `${rc}18`, border: `1px solid ${rc}44`, color: rc,
+          }}>{trade.result}</span>
+          {gc ? (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '3px 8px', borderRadius: 6, fontSize: 14, fontWeight: 700, width: 'fit-content',
+              background: `${gc}18`, border: `1px solid ${gc}44`, color: gc,
+            }}>{trade.grade}</span>
+          ) : (
+            <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>—</span>
+          )}
+        </>
       )}
       <ChevronDown size={14} color="var(--text-muted)" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s', justifySelf: 'end' }} />
     </div>
@@ -1534,6 +1556,7 @@ interface JournalProps {
 }
 
 export function Journal({ entries, onSave, onDelete, initialDate, tradingAccounts }: JournalProps) {
+  const isMobile = useMobile()
   const [search, setSearch] = useState('')
   const [filterResult, setFilterResult] = useState('All')
   const [filterSession, setFilterSession] = useState('All')
@@ -1631,7 +1654,7 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
   }
 
   const filtersActive = search || filterResult !== 'All' || filterSession !== 'All' || filterPnl !== 'All'
-  const COL = 'repeat(9, 1fr) 28px'
+  const COL = isMobile ? '1fr 1fr 60px 28px' : 'repeat(9, 1fr) 28px'
 
   const hStyle: React.CSSProperties = {
     fontSize: 13, fontWeight: 700, color: 'var(--text-muted)',
@@ -1659,8 +1682,8 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
       )}
 
       {/* Filter bar */}
-      <div style={{ flexShrink: 0, padding: '12px 36px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-panel)' }}>
-        <span style={{ fontSize: 15, color: 'var(--text-muted)', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>
+      <div style={{ flexShrink: 0, padding: isMobile ? '10px 12px' : '12px 36px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-panel)', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+        {!isMobile && <span style={{ fontSize: 15, color: 'var(--text-muted)', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>}
         <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search trades…"
@@ -1671,11 +1694,13 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--btn-hover)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}
         ><Plus size={13} /> New Trade</button>
-        {[
-          { label: 'Result',  value: filterResult,  opts: ['All', 'Win', 'Loss', 'BE', "Didn't take"],                              set: setFilterResult  },
-          { label: 'Session', value: filterSession, opts: ['All', 'Asia Session', 'London Session', 'Pre-market', 'New York AM Session', 'Pre-market Asia Session'], set: setFilterSession },
-          { label: 'P&L',    value: filterPnl,     opts: ['All', 'Profitable', 'Unprofitable'],                                    set: setFilterPnl     },
-        ].map(f => (
+        {!isMobile && [{
+          label: 'Result',  value: filterResult,  opts: ['All', 'Win', 'Loss', 'BE', "Didn't take"],                              set: setFilterResult,
+        }, {
+          label: 'Session', value: filterSession, opts: ['All', 'Asia Session', 'London Session', 'Pre-market', 'New York AM Session', 'Pre-market Asia Session'], set: setFilterSession,
+        }, {
+          label: 'P&L',    value: filterPnl,     opts: ['All', 'Profitable', 'Unprofitable'],                                    set: setFilterPnl,
+        }].map(f => (
           <div key={f.label} style={{ position: 'relative' }}>
             <select value={f.value} onChange={e => f.set(e.target.value)} style={selectStyle(f.value !== 'All')}>
               {f.opts.map(o => <option key={o} value={o}>{f.label}: {o}</option>)}
@@ -1693,8 +1718,8 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
       </div>
 
       {/* Column headers */}
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COL, padding: '0 36px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        {['Date', 'Pair', 'Direction', 'Setup', 'Session', 'Net P&L', 'R', 'Result', 'Grade', ''].map(h => (
+      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COL, padding: isMobile ? '0 12px' : '0 36px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
+        {(isMobile ? ['Date / Pair', 'Net P&L', 'Result', ''] : ['Date', 'Pair', 'Direction', 'Setup', 'Session', 'Net P&L', 'R', 'Result', 'Grade', '']).map(h => (
           <div key={h} style={hStyle}>{h}</div>
         ))}
       </div>
@@ -1722,6 +1747,7 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
                   expanded={isExpanded}
                   onToggle={() => openEdit(t)}
                   COL={COL}
+                  isMobile={isMobile}
                 />
                 <div style={{ display: 'grid', gridTemplateRows: isExpanded ? '1fr' : '0fr', transition: 'grid-template-rows 0.28s cubic-bezier(0.4,0,0.2,1)' }}>
                   <div style={{ overflow: 'hidden' }}>

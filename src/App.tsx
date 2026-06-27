@@ -127,7 +127,7 @@ function App() {
           userEmail={session.user.email}
         />
       )}
-      <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
+      <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
         {page === 'dashboard' && (
           <div className="h-full overflow-y-auto">
             <Dashboard

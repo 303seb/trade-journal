@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import type { JournalEntry, DashTrade } from '../types'
 import { formatCurrency } from '../utils/stats'
+import { useMobile } from '../hooks/useMobile'
 
 const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
 
@@ -41,6 +42,7 @@ function yFmt(v: number) {
 }
 
 export function DashboardCharts({ allTrades, monthTrades, journalEntries }: Props) {
+  const isMobile = useMobile()
   // ── 1. Equity Curve (all time, per trade) ──────────────────────────────
   const sorted = [...allTrades].sort((a, b) => a.date.localeCompare(b.date))
   let cum = 0
@@ -92,7 +94,7 @@ export function DashboardCharts({ allTrades, monthTrades, journalEntries }: Prop
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 14 }}>
 
       {/* Equity Curve */}
       <div style={CARD}>

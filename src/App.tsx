@@ -8,7 +8,9 @@ import { Accounts } from './pages/Accounts'
 import { DailyJournal } from './pages/DailyJournal'
 import { Settings } from './pages/Settings'
 import { AuthScreen } from './components/AuthScreen'
+import { BottomNav } from './components/BottomNav'
 import { useStore } from './store/useStore'
+import { useMobile } from './hooks/useMobile'
 import { supabase } from './lib/supabase'
 import type { Session } from '@supabase/supabase-js'
 import './index.css'
@@ -22,6 +24,7 @@ function Placeholder({ label }: { label: string }) {
 }
 
 function App() {
+  const isMobile = useMobile()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [page, setPage] = useState<Page>('dashboard')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -106,17 +109,25 @@ function App() {
     )
   }
 
+  const navigate = (p: Page) => {
+    setPage(p)
+    if (p !== 'trades') setJournalDate(undefined)
+    if (p === 'diary') setDiaryInitialDate(undefined)
+  }
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-      <Sidebar
-        page={page}
-        onNavigate={p => { setPage(p); if (p !== 'trades') setJournalDate(undefined); if (p === 'diary') setDiaryInitialDate(undefined) }}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(v => !v)}
-        onLogout={handleLogout}
-        userEmail={session.user.email}
-      />
-      <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {!isMobile && (
+        <Sidebar
+          page={page}
+          onNavigate={navigate}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(v => !v)}
+          onLogout={handleLogout}
+          userEmail={session.user.email}
+        />
+      )}
+      <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
         {page === 'dashboard' && (
           <div className="h-full overflow-y-auto">
             <Dashboard
@@ -192,6 +203,7 @@ function App() {
           </div>
         )}
       </main>
+      {isMobile && <BottomNav page={page} onNavigate={navigate} />}
     </div>
   )
 }

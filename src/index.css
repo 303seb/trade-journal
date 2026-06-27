@@ -135,3 +135,15 @@ h1, h2, h3, h4 {
   background: rgba(34, 197, 94, 0.25);
   color: #f2f2f2;
 }
+
+/* ── Mobile responsive ── */
+@media (max-width: 767px) {
+  body {
+    font-size: 14px;
+  }
+
+  /* Tighten page padding on mobile */
+  .mobile-page {
+    padding: 14px 14px 16px !important;
+  }
+}

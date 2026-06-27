@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useMobile } from '../hooks/useMobile'
 import { NotebookPen, TrendingUp, DollarSign, BarChart2, Award, Activity, Calendar, X, AlertTriangle } from 'lucide-react'
 import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
@@ -53,6 +54,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal, onNavigateToDiary, diaryDates }: DashboardProps) {
+  const isMobile = useMobile()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -117,16 +119,16 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
   const quote = QUOTES[now.getDay()]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '22px 28px 32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 18, padding: isMobile ? '14px 14px 20px' : '22px 28px 32px' }}>
 
       {/* Action row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* NY Time clock */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: 30, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+          <span style={{ fontSize: isMobile ? 20 : 30, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
             {nyTime || '—'}
           </span>
-          <span style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 600, marginTop: 2, letterSpacing: '0.04em' }}>ET · New York</span>
+          <span style={{ fontSize: isMobile ? 11 : 13, color: 'var(--text-dim)', fontWeight: 600, marginTop: 2, letterSpacing: '0.04em' }}>ET · New York</span>
         </div>
 
         <button
@@ -145,7 +147,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
       </div>
 
       {/* Stats — 6 cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: isMobile ? 8 : 12 }}>
         <StatCard
           label="Yearly P&L"
           value={formatCurrency(yearlyPnl)}

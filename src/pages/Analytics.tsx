@@ -330,7 +330,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
     : `${MONTH_NAMES[month]} ${year}`
 
   return (
-    <div style={{ height: '100%', overflowY: 'auto', background: 'var(--bg)' }}>
+    <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', background: 'var(--bg)' }}>
       <div style={{ maxWidth: 1300, margin: '0 auto', padding: isMobile ? '14px 12px 32px' : '28px 32px 52px', display: 'flex', flexDirection: 'column', gap: isMobile ? 12 : 20 }}>
 
         {/* Header */}

@@ -129,7 +129,7 @@ function App() {
       )}
       <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
         {page === 'dashboard' && (
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto overflow-x-hidden">
             <Dashboard
               journalEntries={journalEntries}
               monthlyGoals={monthlyGoals}

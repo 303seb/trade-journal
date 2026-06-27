@@ -6,6 +6,11 @@
   padding: 0;
 }
 
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 /* ── Dark theme (default) ── */
 :root, [data-theme="dark"] {
   --bg: #0e0e0e;

@@ -390,7 +390,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 28px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '20px 28px 28px' }}>
 
           {/* ── TAB 0: BASIC TRADE DETAILS ── */}
           {activeTab === 0 && (
@@ -1725,7 +1725,7 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
       </div>
 
       {/* Rows */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '70px 0', gap: 12 }}>
             <BookOpen size={30} color="var(--text-dim)" />

@@ -240,7 +240,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                     style={{
                       borderRadius: isMobile ? 5 : 10,
                       padding: isMobile ? '4px 3px 3px' : '8px 7px 7px',
-                      minHeight: isMobile ? 46 : 100,
+                      minHeight: isMobile ? 62 : 100,
                       display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                       justifyContent: 'flex-start', gap: 1,
                       background: cellBg,
@@ -274,18 +274,16 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                         <span style={{ fontSize: isMobile ? 9 : 15, fontWeight: 800, color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#888', lineHeight: 1, marginTop: 1 }}>
                           {isMobile ? fmtPnlShort(pnl) : (pnl >= 0 ? '+' : '') + formatCurrency(pnl)}
                         </span>
-                        {!isMobile && dayR !== null && (
-                          <span style={{ fontSize: 14, fontWeight: 700, color: dayR > 0 ? '#22c55e' : dayR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>
+                        {dayR !== null && (
+                          <span style={{ fontSize: isMobile ? 8 : 14, fontWeight: 700, color: dayR > 0 ? '#22c55e' : dayR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>
                             {dayR >= 0 ? '+' : ''}{dayR.toFixed(1)}R
                           </span>
                         )}
-                        {!isMobile && (
-                          <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
-                            {count} trade{count !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                        {!isMobile && wlbeParts.length > 0 && (
-                          <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1, marginTop: 1 }}>
+                        <span style={{ fontSize: isMobile ? 8 : 14, color: 'var(--text-muted)', fontWeight: 600, lineHeight: 1 }}>
+                          {count} trade{count !== 1 ? 's' : ''}
+                        </span>
+                        {wlbeParts.length > 0 && (
+                          <span style={{ fontSize: isMobile ? 8 : 13, color: 'var(--text-muted)', fontWeight: 700, lineHeight: 1, marginTop: 1 }}>
                             {wlbeParts.join(' - ')}
                           </span>
                         )}

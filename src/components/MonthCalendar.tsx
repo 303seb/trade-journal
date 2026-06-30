@@ -35,13 +35,6 @@ function calcDayR(trades: JournalEntry['trades']): number | null {
   return hasAny ? total : null
 }
 
-function fmtPnlShort(pnl: number): string {
-  const abs = Math.abs(pnl)
-  const sign = pnl >= 0 ? '+' : '-'
-  if (abs >= 1000) return `${sign}${(abs / 1000).toFixed(1)}k`
-  return `${sign}$${Math.round(abs)}`
-}
-
 export function MonthCalendar({ year, month, trades, journalEntries, diaryDates, onDayClick, onDiaryClick, onPrevMonth, onNextMonth }: MonthCalendarProps) {
   const isMobile = useMobile()
   const firstDay = new Date(year, month, 1).getDay()
@@ -271,8 +264,8 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                     </div>
                     {hasData && (
                       <>
-                        <span style={{ fontSize: isMobile ? 9 : 15, fontWeight: 800, color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#888', lineHeight: 1, marginTop: 1 }}>
-                          {isMobile ? fmtPnlShort(pnl) : (pnl >= 0 ? '+' : '') + formatCurrency(pnl)}
+                        <span style={{ fontSize: isMobile ? 7.5 : 15, fontWeight: 800, color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#888', lineHeight: 1, marginTop: 1 }}>
+                          {(pnl >= 0 ? '+' : '') + formatCurrency(pnl)}
                         </span>
                         {dayR !== null && (
                           <span style={{ fontSize: isMobile ? 8 : 14, fontWeight: 700, color: dayR > 0 ? '#22c55e' : dayR < 0 ? '#ef4444' : '#888', lineHeight: 1 }}>

@@ -28,7 +28,7 @@ function emptyTrade(): TradeLog {
   return {
     id: uid(), result: 'Win', accounts: [],
     symbol: '', side: 'Long', contracts: '',
-    entryPrice: '', exitPrice: '', targetPrice: '',
+    entryPrice: '', exitPrice: '', exitPrices: [], targetPrice: '',
     takeProfit: '', stopLoss: '',
     pnl: '', fees: '', drawdown: '',
     duration: '', tradeNumber: '',
@@ -140,6 +140,7 @@ function calcSetupGrade(t: TradeLog): { grade: string; score: number } | null {
 
 const SYMBOLS = ['NQ', 'ES', 'GC', 'MNQ', 'MES', 'MGC']
 const TIMEFRAMES = ['1m', '2m', '3m', '4m', '5m', '15m', '30m', '1hr', '4hr', 'Daily']
+const STDV_LEVELS = [-4, -3, -2, -1, 1, 2, 3, 4]
 
 const RESULTS: { value: TradeResult; label: string; color: string; bg: string }[] = [
   { value: 'Win',   label: 'Win',   color: 'var(--color-win)',  bg: 'var(--color-win-bg)'  },
@@ -260,12 +261,38 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
   const [newDolInput, setNewDolInput] = useState('')
   const [customExitReasons, setCustomExitReasons] = useState<string[]>(() => loadCustomExitReasons())
   const [newExitReasonInput, setNewExitReasonInput] = useState('')
+  const [newExitPriceInput, setNewExitPriceInput] = useState('')
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
+
+  const addExitPrice = (priceStr: string) => {
+    const val = priceStr.trim()
+    if (!val || isNaN(parseFloat(val))) return
+    const newPrices = [...(trade.exitPrices || []), val]
+    const avg = (newPrices.reduce((s, p) => s + parseFloat(p), 0) / newPrices.length).toFixed(4)
+    setTrade(prev => {
+      const next = { ...prev, exitPrices: newPrices, exitPrice: avg }
+      next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, avg, next.contracts)
+      return next
+    })
+    setNewExitPriceInput('')
+  }
+
+  const removeExitPrice = (idx: number) => {
+    const newPrices = (trade.exitPrices || []).filter((_, i) => i !== idx)
+    const avg = newPrices.length > 0
+      ? (newPrices.reduce((s, p) => s + parseFloat(p), 0) / newPrices.length).toFixed(4)
+      : ''
+    setTrade(prev => {
+      const next = { ...prev, exitPrices: newPrices, exitPrice: avg }
+      next.pnl = avg ? calcTradePnl(next.symbol, next.side, next.entryPrice, avg, next.contracts) : ''
+      return next
+    })
+  }
 
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     setTrade(prev => {
@@ -476,10 +503,42 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
               </div>
               <div>
-                {fieldLabel('Exit Price')}
-                <input type="number" value={trade.exitPrice} onChange={e => set('exitPrice', e.target.value)}
-                  placeholder="0" style={inputBase}
-                  onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+                {fieldLabel('Exit Price(s)')}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <input
+                    type="number"
+                    value={newExitPriceInput}
+                    onChange={e => setNewExitPriceInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitPrice(newExitPriceInput) } }}
+                    placeholder="0"
+                    style={{ ...inputBase, flex: 1 }}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
+                  />
+                  <button
+                    onClick={() => addExitPrice(newExitPriceInput)}
+                    style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 18, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s', lineHeight: 1 }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
+                  >+</button>
+                </div>
+                {(trade.exitPrices || []).length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                    {(trade.exitPrices || []).map((p, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
+                        {p}
+                        <button onClick={() => removeExitPrice(i)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-loss)')}
+                          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                        ><X size={9} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {(trade.exitPrices || []).length > 1 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Avg: {parseFloat(trade.exitPrice).toFixed(2)}
+                  </div>
+                )}
               </div>
 
               {/* Row 3: Stop Loss (pts) | Take Profit (pts) | Contracts | Fees $ | Result */}
@@ -786,7 +845,29 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     {autoGradeResult ? `${autoGradeResult.grade} · ${autoGradeResult.score}pts` : '—'}
                   </div>
                 </div>
-                <div /><div /><div />
+                <div>
+                  {fieldLabel('OTE')}
+                  <select value={(trade.otePresent || [])[0] || ''} onChange={e => set('otePresent', e.target.value ? [e.target.value] : [])}
+                    style={selectBase}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
+                    <option value="">—</option>
+                    {TIMEFRAMES.map(tf => <option key={tf} value={`OTE (${tf})`}>{`OTE (${tf})`}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {fieldLabel('STDV')}
+                  <select value={(trade.stdvPresent || [])[0] || ''} onChange={e => set('stdvPresent', e.target.value ? [e.target.value] : [])}
+                    style={selectBase}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
+                    <option value="">—</option>
+                    {STDV_LEVELS.flatMap(n => TIMEFRAMES.map(tf => (
+                      <option key={`${n}-${tf}`} value={`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}>
+                        {`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}
+                      </option>
+                    )))}
+                  </select>
+                </div>
+                <div />
 
               </div>
 

@@ -92,7 +92,8 @@ export interface TradeLog {
   screenshots?: string[]            // base64 encoded images (dynamic list)
   orderBlock?: string[]             // e.g. ["OB (5m)"]
   bprPresent?: string[]             // e.g. ["BPR (15m)"]
-  stdvPresent?: string[]            // e.g. ["STDV (5m)", "STDV -1"]
+  exitPrices?: string[]             // individual partial exit prices
+  stdvPresent?: string[]            // e.g. ["STDV -2 (5m)", "STDV -4 (15m)"]
   otePresent?: string[]             // e.g. ["OTE (1hr)"]
   propFirm?: string
   copyTraded?: string               // 'Yes' | 'No' | ''

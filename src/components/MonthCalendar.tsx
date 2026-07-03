@@ -197,10 +197,11 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
 
           return (
             <div key={wi} style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: isMobile ? 2 : 4 }}>
-              {week.map((day, di) => {
-                if (day === null) return <div key={`e-${wi}-${di}`} />
-
-                const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
+              {week.map((_day, di) => {
+                const dateStr = weekDateStrs[di]
+                const cellD = new Date(dateStr + 'T12:00:00')
+                const day = cellD.getDate()
+                const isCurrentMonth = cellD.getMonth() === month && cellD.getFullYear() === year
                 const pnl = getDayPnl(trades, dateStr)
                 const hasData = hasDayTrades(trades, dateStr)
                 const isToday = dateStr === todayStr
@@ -262,17 +263,17 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                       display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                       justifyContent: 'flex-start', gap: 1,
                       background: cellBg,
-                      border: `1px solid ${isToday ? '#4a4a4a' : cellBorder}`,
+                      border: `1px solid ${isToday && isCurrentMonth ? '#4a4a4a' : cellBorder}`,
                       cursor: 'pointer',
-                      opacity: isWeekend && !hasData ? 0.35 : 1,
-                      outline: isToday ? '1px solid #333' : 'none',
+                      opacity: !isCurrentMonth ? (hasData ? 0.6 : 0.28) : (isWeekend && !hasData ? 0.35 : 1),
+                      outline: isToday && isCurrentMonth ? '1px solid #333' : 'none',
                       outlineOffset: 2,
                       boxShadow: cellShadow,
                       transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
                       textAlign: 'left',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = hasData ? cellBg : 'var(--bg-hover)'; e.currentTarget.style.boxShadow = cellHoverShadow; if (hasData) e.currentTarget.style.transform = 'translateY(-1px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? 'var(--border-strong)' : cellBorder; e.currentTarget.style.background = cellBg; e.currentTarget.style.boxShadow = cellShadow; e.currentTarget.style.transform = 'translateY(0)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = isToday && isCurrentMonth ? 'var(--border-strong)' : cellBorder; e.currentTarget.style.background = cellBg; e.currentTarget.style.boxShadow = cellShadow; e.currentTarget.style.transform = 'translateY(0)' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                       <span style={{ fontSize: isMobile ? 9 : 16, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>

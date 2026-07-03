@@ -91,16 +91,16 @@ html, body, #root {
   --color-loss-bg: rgba(185,28,28,0.14);
   --color-loss-border: rgba(185,28,28,0.50);
   /* depth system */
-  --shadow-card: 0 1px 2px rgba(15,23,42,0.06), 0 8px 22px rgba(15,23,42,0.09);
-  --shadow-card-hover: 0 2px 8px rgba(15,23,42,0.10), 0 18px 40px rgba(15,23,42,0.15);
+  --shadow-card: 0 1px 3px rgba(15,23,42,0.10), 0 10px 28px rgba(15,23,42,0.14);
+  --shadow-card-hover: 0 3px 10px rgba(15,23,42,0.16), 0 22px 46px rgba(15,23,42,0.22);
   --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,0.9);
-  --shadow-sm: 0 1px 2px rgba(15,23,42,0.05), 0 2px 6px rgba(15,23,42,0.07);
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.08), 0 3px 10px rgba(15,23,42,0.10);
   --card-sheen: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.18) 45%, rgba(255,255,255,0) 100%);
-  --glow-green: 0 0 20px rgba(21,128,61,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
-  --glow-red: 0 0 20px rgba(185,28,28,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
-  --glow-green-soft: 0 4px 16px rgba(21,128,61,0.12), var(--shadow-inset-top);
-  --glow-red-soft: 0 4px 16px rgba(185,28,28,0.10), var(--shadow-inset-top);
-  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(15,23,42,0.045), transparent 72%);
+  --glow-green: 0 0 22px rgba(21,128,61,0.28), inset 0 1px 0 rgba(255,255,255,0.6);
+  --glow-red: 0 0 22px rgba(185,28,28,0.28), inset 0 1px 0 rgba(255,255,255,0.6);
+  --glow-green-soft: 0 4px 16px rgba(21,128,61,0.20), var(--shadow-inset-top);
+  --glow-red-soft: 0 4px 16px rgba(185,28,28,0.18), var(--shadow-inset-top);
+  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(15,23,42,0.05), transparent 72%);
 }
 
 [data-theme="light"] body {

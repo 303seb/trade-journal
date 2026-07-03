@@ -167,8 +167,12 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
       {/* Calendar rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 4 }}>
         {weeks.map((week, wi) => {
-          const weekDays = week.filter((d): d is number => d !== null)
-          const weekDateStrs = weekDays.map(d => `${year}-${pad(month + 1)}-${pad(d)}`)
+          // Full Sun–Sat week including days that spill into the previous/next
+          // month, so weekly totals carry over across month boundaries.
+          const weekDateStrs = week.map((_, di) => {
+            const dt = new Date(year, month, 1 + (wi * 7 + di - firstDay))
+            return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+          })
           const weekTradesData = trades.filter(t => weekDateStrs.includes(t.date))
           const weekPnl = weekTradesData.reduce((s, t) => s + t.pnl, 0)
           const weekCount = weekTradesData.length
@@ -228,14 +232,14 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                 if (hasData && isPositive)  {
                   cellBg = 'linear-gradient(158deg, rgba(52,211,153,0.17), rgba(52,211,153,0.05))'
                   cellBorder = 'rgba(52,211,153,0.35)'
-                  dayNumColor = '#dfefe6'
+                  dayNumColor = 'var(--text-label)'
                   cellShadow = 'var(--glow-green-soft)'
                   cellHoverShadow = 'var(--glow-green)'
                 }
                 if (hasData && isNegative)  {
                   cellBg = 'linear-gradient(158deg, rgba(239,68,68,0.17), rgba(239,68,68,0.05))'
                   cellBorder = 'rgba(239,68,68,0.35)'
-                  dayNumColor = '#f0dede'
+                  dayNumColor = 'var(--text-label)'
                   cellShadow = 'var(--glow-red-soft)'
                   cellHoverShadow = 'var(--glow-red)'
                 }

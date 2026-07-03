@@ -43,7 +43,7 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
   })
 
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '14px 14px' : '24px 28px' }}>
+    <div style={{ background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '14px 14px' : '24px 28px', boxShadow: 'var(--shadow-card)' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 14 : 22 }}>
@@ -130,11 +130,12 @@ export function IncomeGoal({ month, currentPnl, goal, onSetGoal }: IncomeGoalPro
           </div>
 
           {/* Progress bar */}
-          <div style={{ height: isMobile ? 8 : 10, background: 'var(--bg-hover)', borderRadius: 999, overflow: 'hidden', marginBottom: isMobile ? 10 : 16 }}>
+          <div style={{ height: isMobile ? 8 : 10, background: 'var(--bg-hover)', borderRadius: 999, overflow: 'hidden', marginBottom: isMobile ? 10 : 16, boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.35)' }}>
             <div style={{
               width: `${Math.max(progress, 0)}%`, height: '100%', borderRadius: 999,
-              background: barColor,
-              transition: 'width 0.5s ease, background 0.4s ease',
+              background: `linear-gradient(180deg, ${barColor}, ${barColor})`,
+              boxShadow: progress > 0 ? `0 0 12px ${barColor}, inset 0 1px 0 rgba(255,255,255,0.25)` : 'none',
+              transition: 'width 0.5s ease, background 0.4s ease, box-shadow 0.4s ease',
             }} />
           </div>
 

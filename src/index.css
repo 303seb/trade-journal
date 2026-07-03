@@ -44,6 +44,17 @@ html, body, #root {
   --color-loss: #ef4444;
   --color-loss-bg: rgba(239,68,68,0.20);
   --color-loss-border: rgba(239,68,68,0.55);
+  /* depth system */
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.5), 0 10px 28px rgba(0,0,0,0.38);
+  --shadow-card-hover: 0 2px 8px rgba(0,0,0,0.55), 0 20px 48px rgba(0,0,0,0.52);
+  --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,0.06);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4), 0 3px 8px rgba(0,0,0,0.25);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.01) 42%, rgba(255,255,255,0) 100%);
+  --glow-green: 0 0 22px rgba(34,197,94,0.22), inset 0 1px 0 rgba(255,255,255,0.05);
+  --glow-red: 0 0 22px rgba(239,68,68,0.22), inset 0 1px 0 rgba(255,255,255,0.05);
+  --glow-green-soft: 0 4px 16px rgba(34,197,94,0.16), var(--shadow-inset-top);
+  --glow-red-soft: 0 4px 16px rgba(239,68,68,0.16), var(--shadow-inset-top);
+  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(255,255,255,0.032), transparent 72%);
 }
 
 /* ── Light theme ── */
@@ -79,6 +90,17 @@ html, body, #root {
   --color-loss: #b91c1c;
   --color-loss-bg: rgba(185,28,28,0.14);
   --color-loss-border: rgba(185,28,28,0.50);
+  /* depth system */
+  --shadow-card: 0 1px 2px rgba(15,23,42,0.06), 0 8px 22px rgba(15,23,42,0.09);
+  --shadow-card-hover: 0 2px 8px rgba(15,23,42,0.10), 0 18px 40px rgba(15,23,42,0.15);
+  --shadow-inset-top: inset 0 1px 0 rgba(255,255,255,0.9);
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.05), 0 2px 6px rgba(15,23,42,0.07);
+  --card-sheen: linear-gradient(180deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.18) 45%, rgba(255,255,255,0) 100%);
+  --glow-green: 0 0 20px rgba(21,128,61,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
+  --glow-red: 0 0 20px rgba(185,28,28,0.18), inset 0 1px 0 rgba(255,255,255,0.6);
+  --glow-green-soft: 0 4px 16px rgba(21,128,61,0.12), var(--shadow-inset-top);
+  --glow-red-soft: 0 4px 16px rgba(185,28,28,0.10), var(--shadow-inset-top);
+  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(15,23,42,0.045), transparent 72%);
 }
 
 [data-theme="light"] body {

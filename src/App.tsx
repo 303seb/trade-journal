@@ -116,7 +116,7 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--app-ambient), var(--bg)' }}>
       {!isMobile && (
         <Sidebar
           page={page}

@@ -69,7 +69,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
   const colTemplate = 'repeat(8, 1fr)'
 
   return (
-    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 10px 10px' : '20px 20px 18px' }}>
+    <div style={{ background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 10px 10px' : '20px 20px 18px', boxShadow: 'var(--shadow-card)' }}>
 
       {/* Header */}
       {isMobile ? (
@@ -182,11 +182,14 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
           const weekWLBE = [weekWins > 0 ? `${weekWins}W` : null, weekLosses > 0 ? `${weekLosses}L` : null, weekBEs > 0 ? `${weekBEs}BE` : null].filter(Boolean)
           const weekPnlColor = weekHasData ? (weekPnl > 0 ? '#22c55e' : weekPnl < 0 ? '#ef4444' : '#888') : '#444'
           const weekBg = weekHasData
-            ? weekPnl > 0 ? 'rgba(52,211,153,0.05)' : weekPnl < 0 ? 'rgba(239,68,68,0.05)' : 'rgba(255,255,255,0.02)'
+            ? weekPnl > 0 ? 'linear-gradient(158deg, rgba(52,211,153,0.12), rgba(52,211,153,0.03))' : weekPnl < 0 ? 'linear-gradient(158deg, rgba(239,68,68,0.12), rgba(239,68,68,0.03))' : 'var(--card-sheen), rgba(255,255,255,0.02)'
             : 'transparent'
           const weekBorder = weekHasData
-            ? weekPnl > 0 ? 'rgba(52,211,153,0.15)' : weekPnl < 0 ? 'rgba(239,68,68,0.15)' : 'var(--border-mid)'
+            ? weekPnl > 0 ? 'rgba(52,211,153,0.28)' : weekPnl < 0 ? 'rgba(239,68,68,0.28)' : 'var(--border-mid)'
             : 'var(--border)'
+          const weekShadow = weekHasData
+            ? weekPnl > 0 ? 'var(--glow-green-soft)' : weekPnl < 0 ? 'var(--glow-red-soft)' : 'var(--shadow-sm)'
+            : 'none'
 
           return (
             <div key={wi} style={{ display: 'grid', gridTemplateColumns: colTemplate, gap: isMobile ? 2 : 4 }}>
@@ -219,10 +222,30 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                 let cellBg = 'var(--bg)'
                 let cellBorder = 'var(--border)'
                 let dayNumColor = 'var(--text-dim)'
+                let cellShadow = 'var(--shadow-inset-top)'
+                let cellHoverShadow = 'var(--shadow-sm), var(--shadow-inset-top)'
 
-                if (hasData && isPositive)  { cellBg = 'rgba(52,211,153,0.08)';  cellBorder = 'rgba(52,211,153,0.2)';  dayNumColor = '#cccccc' }
-                if (hasData && isNegative)  { cellBg = 'rgba(239,68,68,0.08)'; cellBorder = 'rgba(239,68,68,0.2)'; dayNumColor = '#cccccc' }
-                if (hasData && !isPositive && !isNegative) { cellBg = 'var(--bg-hover)'; cellBorder = 'var(--border-mid)'; dayNumColor = 'var(--text-sub)' }
+                if (hasData && isPositive)  {
+                  cellBg = 'linear-gradient(158deg, rgba(52,211,153,0.17), rgba(52,211,153,0.05))'
+                  cellBorder = 'rgba(52,211,153,0.35)'
+                  dayNumColor = '#dfefe6'
+                  cellShadow = 'var(--glow-green-soft)'
+                  cellHoverShadow = 'var(--glow-green)'
+                }
+                if (hasData && isNegative)  {
+                  cellBg = 'linear-gradient(158deg, rgba(239,68,68,0.17), rgba(239,68,68,0.05))'
+                  cellBorder = 'rgba(239,68,68,0.35)'
+                  dayNumColor = '#f0dede'
+                  cellShadow = 'var(--glow-red-soft)'
+                  cellHoverShadow = 'var(--glow-red)'
+                }
+                if (hasData && !isPositive && !isNegative) {
+                  cellBg = 'var(--card-sheen), var(--bg-hover)'
+                  cellBorder = 'var(--border-mid)'
+                  dayNumColor = 'var(--text-sub)'
+                  cellShadow = 'var(--shadow-sm)'
+                  cellHoverShadow = 'var(--shadow-sm), var(--shadow-inset-top)'
+                }
 
                 return (
                   <button
@@ -240,11 +263,12 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                       opacity: isWeekend && !hasData ? 0.35 : 1,
                       outline: isToday ? '1px solid #333' : 'none',
                       outlineOffset: 2,
-                      transition: 'all 0.15s ease',
+                      boxShadow: cellShadow,
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease',
                       textAlign: 'left',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = hasData ? cellBg : 'var(--bg-hover)' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? 'var(--border-strong)' : cellBorder; e.currentTarget.style.background = cellBg }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = hasData ? cellBg : 'var(--bg-hover)'; e.currentTarget.style.boxShadow = cellHoverShadow; if (hasData) e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = isToday ? 'var(--border-strong)' : cellBorder; e.currentTarget.style.background = cellBg; e.currentTarget.style.boxShadow = cellShadow; e.currentTarget.style.transform = 'translateY(0)' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                       <span style={{ fontSize: isMobile ? 9 : 16, fontWeight: 700, color: dayNumColor, lineHeight: 1 }}>
@@ -291,7 +315,8 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                 justifyContent: 'flex-start', gap: isMobile ? 1 : 3,
                 background: weekBg,
                 border: `1px solid ${weekBorder}`,
-                borderLeft: `2px solid ${weekHasData ? (weekPnl > 0 ? 'rgba(52,211,153,0.4)' : weekPnl < 0 ? 'rgba(239,68,68,0.4)' : '#2a2a2a') : '#1a1a1a'}`,
+                borderLeft: `2px solid ${weekHasData ? (weekPnl > 0 ? 'rgba(52,211,153,0.55)' : weekPnl < 0 ? 'rgba(239,68,68,0.55)' : '#2a2a2a') : '#1a1a1a'}`,
+                boxShadow: weekShadow,
               }}>
                 <span style={{ fontSize: isMobile ? 7 : 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1 }}>
                   {isMobile ? `W${wi + 1}` : `WK ${wi + 1}`}

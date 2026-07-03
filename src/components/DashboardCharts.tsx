@@ -16,7 +16,8 @@ interface Props {
 }
 
 const CARD: React.CSSProperties = {
-  background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px 14px',
+  background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '18px 20px 14px',
+  boxShadow: 'var(--shadow-card)',
 }
 const TITLE: React.CSSProperties = {
   fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', margin: '0 0 14px',

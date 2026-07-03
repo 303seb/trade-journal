@@ -194,8 +194,8 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
 
       {/* Quote */}
       <div style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14,
-        padding: isMobile ? '12px 14px' : '20px 28px', textAlign: 'center',
+        background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14,
+        padding: isMobile ? '12px 14px' : '20px 28px', textAlign: 'center', boxShadow: 'var(--shadow-card)',
       }}>
         <p style={{ fontSize: isMobile ? 13 : 18, color: 'var(--text-sub)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
           &ldquo;{quote.text}&rdquo;
@@ -249,7 +249,7 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
         }
 
         return (
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 12px 10px' : '20px 20px 16px' }}>
+          <div style={{ background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: isMobile ? '12px 12px 10px' : '20px 20px 16px', boxShadow: 'var(--shadow-card)' }}>
             <h3 style={{ fontSize: isMobile ? 12 : 16, fontWeight: 700, color: 'var(--text-muted)', margin: isMobile ? '0 0 10px' : '0 0 14px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               Recent Trades
             </h3>
@@ -283,10 +283,11 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8,
                       background: style.bg, border: `1px solid ${style.border}`,
-                      cursor: 'pointer', transition: 'filter 0.12s',
+                      cursor: 'pointer', boxShadow: 'var(--shadow-inset-top)',
+                      transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.5)')}
-                    onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm), var(--shadow-inset-top)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-inset-top)'; e.currentTarget.style.transform = 'translateY(0)' }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-label)' }}>{t.symbol || '—'}</div>
@@ -305,10 +306,11 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
                       display: 'grid', gridTemplateColumns: '110px 70px 70px 1fr 80px',
                       gap: 12, padding: '9px 14px', borderRadius: 8,
                       background: style.bg, border: `1px solid ${style.border}`,
-                      alignItems: 'center', cursor: 'pointer', transition: 'filter 0.12s',
+                      alignItems: 'center', cursor: 'pointer', boxShadow: 'var(--shadow-inset-top)',
+                      transition: 'transform 0.12s ease, box-shadow 0.12s ease',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.5)')}
-                    onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-sm), var(--shadow-inset-top)'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-inset-top)'; e.currentTarget.style.transform = 'translateY(0)' }}
                   >
                     <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-muted)' }}>{dateShort}</span>
                     <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-label)' }}>{t.symbol || '—'}</span>

@@ -24,10 +24,20 @@ export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
       ? 'rgba(34,197,94,0.5)'
       : 'rgba(239,68,68,0.5)'
 
+  const glow =
+    positive === null || positive === undefined
+      ? 'var(--shadow-inset-top)'
+      : positive
+      ? 'var(--glow-green-soft)'
+      : 'var(--glow-red-soft)'
+
+  const restShadow = `${glow}, var(--shadow-card)`
+  const hoverShadow = `${glow}, var(--shadow-card-hover)`
+
   return (
     <div
       style={{
-        background: 'var(--bg-card)',
+        background: 'var(--card-sheen), var(--bg-card)',
         border: '1px solid var(--border)',
         borderLeft: `3px solid ${accentColor}`,
         borderRadius: 14,
@@ -36,15 +46,15 @@ export function StatCard({ label, value, sub, positive, icon }: StatCardProps) {
         flexDirection: 'column',
         gap: isMobile ? 4 : 12,
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        boxShadow: restShadow,
       }}
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-2px)'
-        e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'
+        e.currentTarget.style.boxShadow = hoverShadow
       }}
       onMouseLeave={e => {
         e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'
+        e.currentTarget.style.boxShadow = restShadow
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

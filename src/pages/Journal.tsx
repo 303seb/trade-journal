@@ -28,7 +28,7 @@ function emptyTrade(): TradeLog {
   return {
     id: uid(), result: 'Win', accounts: [],
     symbol: '', side: 'Long', contracts: '',
-    entryPrice: '', exitPrice: '', exitPrices: [], targetPrice: '',
+    entryPrice: '', exitPrice: '', exitPartials: [], targetPrice: '',
     takeProfit: '', stopLoss: '',
     pnl: '', fees: '', drawdown: '',
     duration: '', tradeNumber: '',
@@ -97,6 +97,19 @@ function calcTradePnl(symbol: string, side: 'Long' | 'Short', entry: string, exi
   const e = parseFloat(entry), x = parseFloat(exit), c = parseFloat(contracts)
   if (!pv || isNaN(e) || isNaN(x) || isNaN(c) || c <= 0 || e === 0 || x === 0) return ''
   return ((side === 'Long' ? x - e : e - x) * pv * c).toFixed(2)
+}
+function calcPartialsPnl(symbol: string, side: 'Long' | 'Short', entry: string, partials: { price: string; qty: string }[]): string {
+  const pv = PVMAP[symbol]
+  const e = parseFloat(entry)
+  if (!pv || isNaN(e) || partials.length === 0) return ''
+  let total = 0
+  for (const p of partials) {
+    const price = parseFloat(p.price)
+    const qty = parseFloat(p.qty)
+    if (isNaN(price) || isNaN(qty) || qty <= 0) continue
+    total += (side === 'Long' ? price - e : e - price) * pv * qty
+  }
+  return total.toFixed(2)
 }
 function calcRR(tp: string, sl: string): string {
   const t = parseFloat(tp), s = parseFloat(sl)
@@ -262,6 +275,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
   const [customExitReasons, setCustomExitReasons] = useState<string[]>(() => loadCustomExitReasons())
   const [newExitReasonInput, setNewExitReasonInput] = useState('')
   const [newExitPriceInput, setNewExitPriceInput] = useState('')
+  const [newExitQtyInput, setNewExitQtyInput] = useState('')
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -269,36 +283,41 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const addExitPrice = (priceStr: string) => {
-    const val = priceStr.trim()
-    if (!val || isNaN(parseFloat(val))) return
-    const newPrices = [...(trade.exitPrices || []), val]
-    const avg = (newPrices.reduce((s, p) => s + parseFloat(p), 0) / newPrices.length).toFixed(4)
-    setTrade(prev => {
-      const next = { ...prev, exitPrices: newPrices, exitPrice: avg }
-      next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, avg, next.contracts)
-      return next
-    })
+  const addExitPartial = () => {
+    const price = newExitPriceInput.trim()
+    const qty = newExitQtyInput.trim()
+    if (!price || isNaN(parseFloat(price)) || !qty || isNaN(parseFloat(qty)) || parseFloat(qty) <= 0) return
+    const newPartials = [...(trade.exitPartials || []), { price, qty }]
+    const totalQty = newPartials.reduce((s, p) => s + parseFloat(p.qty), 0)
+    const avgPrice = (newPartials.reduce((s, p) => s + parseFloat(p.price) * parseFloat(p.qty), 0) / totalQty).toFixed(4)
+    const pnl = calcPartialsPnl(trade.symbol, trade.side, trade.entryPrice, newPartials)
+    setTrade(prev => ({ ...prev, exitPartials: newPartials, exitPrice: avgPrice, pnl }))
     setNewExitPriceInput('')
+    setNewExitQtyInput('')
   }
 
-  const removeExitPrice = (idx: number) => {
-    const newPrices = (trade.exitPrices || []).filter((_, i) => i !== idx)
-    const avg = newPrices.length > 0
-      ? (newPrices.reduce((s, p) => s + parseFloat(p), 0) / newPrices.length).toFixed(4)
-      : ''
-    setTrade(prev => {
-      const next = { ...prev, exitPrices: newPrices, exitPrice: avg }
-      next.pnl = avg ? calcTradePnl(next.symbol, next.side, next.entryPrice, avg, next.contracts) : ''
-      return next
-    })
+  const removeExitPartial = (idx: number) => {
+    const newPartials = (trade.exitPartials || []).filter((_, i) => i !== idx)
+    if (newPartials.length === 0) {
+      setTrade(prev => ({ ...prev, exitPartials: [], exitPrice: '', pnl: '' }))
+      return
+    }
+    const totalQty = newPartials.reduce((s, p) => s + parseFloat(p.qty), 0)
+    const avgPrice = (newPartials.reduce((s, p) => s + parseFloat(p.price) * parseFloat(p.qty), 0) / totalQty).toFixed(4)
+    const pnl = calcPartialsPnl(trade.symbol, trade.side, trade.entryPrice, newPartials)
+    setTrade(prev => ({ ...prev, exitPartials: newPartials, exitPrice: avgPrice, pnl }))
   }
 
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     setTrade(prev => {
       const next = { ...prev, [k]: v }
-      if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts'].includes(k as string))
-        next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, next.exitPrice, next.contracts)
+      if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts'].includes(k as string)) {
+        if ((next.exitPartials || []).length > 0) {
+          next.pnl = calcPartialsPnl(next.symbol, next.side, next.entryPrice, next.exitPartials || [])
+        } else {
+          next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, next.exitPrice, next.contracts)
+        }
+      }
       return next
     })
   }
@@ -504,29 +523,39 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
               </div>
               <div>
                 {fieldLabel('Exit Price(s)')}
-                <div style={{ display: 'flex', gap: 5 }}>
+                <div style={{ display: 'flex', gap: 4 }}>
                   <input
                     type="number"
                     value={newExitPriceInput}
                     onChange={e => setNewExitPriceInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitPrice(newExitPriceInput) } }}
-                    placeholder="0"
-                    style={{ ...inputBase, flex: 1 }}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitPartial() } }}
+                    placeholder="Price"
+                    style={{ ...inputBase, flex: 2, fontSize: 15 }}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
+                  />
+                  <input
+                    type="number"
+                    value={newExitQtyInput}
+                    onChange={e => setNewExitQtyInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitPartial() } }}
+                    placeholder="Qty"
+                    min="1"
+                    style={{ ...inputBase, flex: 1, fontSize: 15 }}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
                   />
                   <button
-                    onClick={() => addExitPrice(newExitPriceInput)}
-                    style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 18, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s', lineHeight: 1 }}
+                    onClick={addExitPartial}
+                    style={{ padding: '7px 11px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 18, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s', lineHeight: 1 }}
                     onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
                     onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
                   >+</button>
                 </div>
-                {(trade.exitPrices || []).length > 0 && (
+                {(trade.exitPartials || []).length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-                    {(trade.exitPrices || []).map((p, i) => (
-                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
-                        {p}
-                        <button onClick={() => removeExitPrice(i)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                    {(trade.exitPartials || []).map((p, i) => (
+                      <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 12, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
+                        {p.price} × {p.qty}
+                        <button onClick={() => removeExitPartial(i)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-loss)')}
                           onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                         ><X size={9} /></button>
@@ -534,9 +563,9 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     ))}
                   </div>
                 )}
-                {(trade.exitPrices || []).length > 1 && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    Avg: {parseFloat(trade.exitPrice).toFixed(2)}
+                {(trade.exitPartials || []).length > 0 && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    {(trade.exitPartials || []).reduce((s, p) => s + parseFloat(p.qty), 0)} contracts · wt. avg {parseFloat(trade.exitPrice || '0').toFixed(2)}
                   </div>
                 )}
               </div>
@@ -741,7 +770,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   </select>
                 </div>
 
-                {/* Row 3: Rejection Block | Entry Model | Setup Type | Playbook Used | Timeframe Used */}
+                {/* Row 3: Rejection Block | OTE | STDV | Entry Model | Setup Type */}
                 <div>
                   {fieldLabel('Rejection Block')}
                   <select value={(trade.rejectionBlock || [])[0] || ''} onChange={e => set('rejectionBlock', e.target.value ? [e.target.value] : [])}
@@ -749,6 +778,28 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                     <option value="">—</option>
                     {TIMEFRAMES.map(tf => <option key={tf} value={`RB (${tf})`}>{`RB (${tf})`}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {fieldLabel('OTE')}
+                  <select value={(trade.otePresent || [])[0] || ''} onChange={e => set('otePresent', e.target.value ? [e.target.value] : [])}
+                    style={selectBase}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
+                    <option value="">—</option>
+                    {TIMEFRAMES.map(tf => <option key={tf} value={`OTE (${tf})`}>{`OTE (${tf})`}</option>)}
+                  </select>
+                </div>
+                <div>
+                  {fieldLabel('STDV')}
+                  <select value={(trade.stdvPresent || [])[0] || ''} onChange={e => set('stdvPresent', e.target.value ? [e.target.value] : [])}
+                    style={selectBase}
+                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
+                    <option value="">—</option>
+                    {STDV_LEVELS.flatMap(n => TIMEFRAMES.map(tf => (
+                      <option key={`${n}-${tf}`} value={`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}>
+                        {`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}
+                      </option>
+                    )))}
                   </select>
                 </div>
                 <div>
@@ -763,6 +814,8 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     placeholder="e.g. Reversal" style={inputBase}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
                 </div>
+
+                {/* Row 4: Playbook Used | Timeframe Used | Market Condition | Exit Reason | Target Logic */}
                 <div>
                   {fieldLabel('Playbook Used')}
                   <input value={trade.playbookUsed || ''} onChange={e => set('playbookUsed', e.target.value)}
@@ -778,8 +831,6 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     {TIMEFRAMES.map(tf => <option key={tf} value={tf}>{tf}</option>)}
                   </select>
                 </div>
-
-                {/* Row 4: Market Condition | Exit Reason | Target Logic | Stop Placement Logic | News Present */}
                 <div>
                   {fieldLabel('Market Condition')}
                   <select value={trade.marketCondition || ''} onChange={e => set('marketCondition', e.target.value)}
@@ -805,6 +856,8 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     placeholder="e.g. Previous HOD" style={inputBase}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
                 </div>
+
+                {/* Row 5: Stop Logic | News Present | News Impact | Auto Grade | [empty] */}
                 <div>
                   {fieldLabel('Stop Logic')}
                   <input value={trade.riskPlacementLogic || ''} onChange={e => set('riskPlacementLogic', e.target.value)}
@@ -821,8 +874,6 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     <option value="No">No</option>
                   </select>
                 </div>
-
-                {/* Row 5: News Impact | Auto Grade | [3 empty] */}
                 <div>
                   {fieldLabel('News Impact')}
                   <select value={trade.newsImpact || ''} onChange={e => set('newsImpact', e.target.value)}
@@ -844,28 +895,6 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   }}>
                     {autoGradeResult ? `${autoGradeResult.grade} · ${autoGradeResult.score}pts` : '—'}
                   </div>
-                </div>
-                <div>
-                  {fieldLabel('OTE')}
-                  <select value={(trade.otePresent || [])[0] || ''} onChange={e => set('otePresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`OTE (${tf})`}>{`OTE (${tf})`}</option>)}
-                  </select>
-                </div>
-                <div>
-                  {fieldLabel('STDV')}
-                  <select value={(trade.stdvPresent || [])[0] || ''} onChange={e => set('stdvPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {STDV_LEVELS.flatMap(n => TIMEFRAMES.map(tf => (
-                      <option key={`${n}-${tf}`} value={`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}>
-                        {`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}
-                      </option>
-                    )))}
-                  </select>
                 </div>
                 <div />
 

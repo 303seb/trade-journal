@@ -153,7 +153,7 @@ function calcSetupGrade(t: TradeLog): { grade: string; score: number } | null {
 
 const SYMBOLS = ['NQ', 'ES', 'GC', 'MNQ', 'MES', 'MGC']
 const TIMEFRAMES = ['1m', '2m', '3m', '4m', '5m', '15m', '30m', '1hr', '4hr', 'Daily']
-const STDV_LEVELS = [-4, -3, -2, -1, 1, 2, 3, 4]
+const STDV_LEVELS = [-4, -2, -1]
 
 const RESULTS: { value: TradeResult; label: string; color: string; bg: string }[] = [
   { value: 'Win',   label: 'Win',   color: 'var(--color-win)',  bg: 'var(--color-win-bg)'  },

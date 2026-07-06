@@ -97,6 +97,7 @@ export interface TradeLog {
   otePresent?: string[]             // e.g. ["OTE (1hr)"]
   propFirm?: string
   copyTraded?: string               // 'Yes' | 'No' | ''
+  copyTradedAccounts?: string[]     // accounts the trade was copy traded to (P&L multiplies per account)
   playbookUsed?: string
   aplusSetup?: string               // 'Yes' | 'No' | ''
   targetLogic?: string

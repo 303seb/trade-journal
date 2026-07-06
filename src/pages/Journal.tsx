@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen,
+  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check,
 } from 'lucide-react'
 import type { JournalEntry, TradeLog, TradeResult, TradingRule, TradingAccount } from '../types'
 import { formatCurrency } from '../utils/stats'
@@ -60,6 +60,7 @@ function emptyTrade(): TradeLog {
     otePresent: [],
     propFirm: '',
     copyTraded: '',
+    copyTradedAccounts: [],
     playbookUsed: '',
     aplusSetup: '',
     targetLogic: '',
@@ -253,6 +254,80 @@ function ScreenshotUpload({ label, preview, onFile, onClear }: {
   )
 }
 
+// ── Multi-select dropdown ─────────────────────────────────────────────────────
+
+function MultiSelectDropdown({ options, selected, onChange, placeholder = '—' }: {
+  options: string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const toggle = (opt: string) => {
+    onChange(selected.includes(opt) ? selected.filter(o => o !== opt) : [...selected, opt])
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ ...selectBase, textAlign: 'left', display: 'flex', alignItems: 'center' }}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'var(--border-mid)')}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: selected.length ? 'var(--text)' : 'var(--text-muted)' }}>
+          {selected.length === 0 ? placeholder : selected.length === 1 ? selected[0] : `${selected.length} selected`}
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 60, background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', borderRadius: 8, boxShadow: 'var(--shadow-card)', maxHeight: 240, overflowY: 'auto', padding: 4 }}>
+          {options.length === 0 && <div style={{ padding: '8px 10px', fontSize: 14, color: 'var(--text-dim)' }}>No options</div>}
+          {options.map(opt => {
+            const active = selected.includes(opt)
+            return (
+              <div key={opt} onClick={() => toggle(opt)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 6, cursor: 'pointer', fontSize: 15, color: active ? 'var(--text)' : 'var(--text-sub)', background: active ? 'var(--bg-active)' : 'transparent' }}
+                onMouseEnter={e => (e.currentTarget.style.background = active ? 'var(--bg-active)' : 'var(--bg-hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = active ? 'var(--bg-active)' : 'transparent')}
+              >
+                <span style={{ width: 16, height: 16, borderRadius: 4, border: `1px solid ${active ? 'var(--border-strong)' : 'var(--border-mid)'}`, background: active ? 'var(--btn-bg)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {active && <Check size={11} color="var(--btn-text)" strokeWidth={3} />}
+                </span>
+                {opt}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {selected.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+          {selected.map(s => (
+            <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px 2px 8px', borderRadius: 999, fontSize: 12, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
+              {s}
+              <button type="button" onClick={() => toggle(s)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-loss)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+              ><X size={9} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Shared pill / tag helpers ─────────────────────────────────────────────────
 
 
@@ -283,6 +358,18 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  // P&L multiplies across every account the trade was copy traded to.
+  const pnlMultiplier = (t: TradeLog) =>
+    t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+
+  const computeStoredPnl = (t: TradeLog): string => {
+    const base = (t.exitPartials && t.exitPartials.length > 0)
+      ? calcPartialsPnl(t.symbol, t.side, t.entryPrice, t.exitPartials)
+      : calcTradePnl(t.symbol, t.side, t.entryPrice, t.exitPrice, t.contracts)
+    if (base === '') return ''
+    return (parseFloat(base) * pnlMultiplier(t)).toFixed(2)
+  }
+
   const addExitPartial = () => {
     const price = newExitPriceInput.trim()
     const qty = newExitQtyInput.trim()
@@ -290,8 +377,11 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     const newPartials = [...(trade.exitPartials || []), { price, qty }]
     const totalQty = newPartials.reduce((s, p) => s + parseFloat(p.qty), 0)
     const avgPrice = (newPartials.reduce((s, p) => s + parseFloat(p.price) * parseFloat(p.qty), 0) / totalQty).toFixed(4)
-    const pnl = calcPartialsPnl(trade.symbol, trade.side, trade.entryPrice, newPartials)
-    setTrade(prev => ({ ...prev, exitPartials: newPartials, exitPrice: avgPrice, pnl }))
+    setTrade(prev => {
+      const next = { ...prev, exitPartials: newPartials, exitPrice: avgPrice }
+      next.pnl = computeStoredPnl(next)
+      return next
+    })
     setNewExitPriceInput('')
     setNewExitQtyInput('')
   }
@@ -304,19 +394,18 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     }
     const totalQty = newPartials.reduce((s, p) => s + parseFloat(p.qty), 0)
     const avgPrice = (newPartials.reduce((s, p) => s + parseFloat(p.price) * parseFloat(p.qty), 0) / totalQty).toFixed(4)
-    const pnl = calcPartialsPnl(trade.symbol, trade.side, trade.entryPrice, newPartials)
-    setTrade(prev => ({ ...prev, exitPartials: newPartials, exitPrice: avgPrice, pnl }))
+    setTrade(prev => {
+      const next = { ...prev, exitPartials: newPartials, exitPrice: avgPrice }
+      next.pnl = computeStoredPnl(next)
+      return next
+    })
   }
 
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     setTrade(prev => {
       const next = { ...prev, [k]: v }
-      if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts'].includes(k as string)) {
-        if ((next.exitPartials || []).length > 0) {
-          next.pnl = calcPartialsPnl(next.symbol, next.side, next.entryPrice, next.exitPartials || [])
-        } else {
-          next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, next.exitPrice, next.contracts)
-        }
+      if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts', 'copyTraded', 'copyTradedAccounts'].includes(k as string)) {
+        next.pnl = computeStoredPnl(next)
       }
       return next
     })
@@ -365,7 +454,10 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
   const slPts = parseFloat(trade.stopLoss)
   const c = parseFloat(trade.contracts)
   const riskDollars = pv && !isNaN(slPts) && !isNaN(c) && c > 0 && slPts > 0 ? slPts * pv * c : 0
-  const rMultiple = riskDollars > 0 && hasPnl ? parseFloat((grossPnl / riskDollars).toFixed(2)) : null
+  // Risk scales with the number of copy-traded accounts, so R stays per-setup.
+  const rMultiple = riskDollars > 0 && hasPnl ? parseFloat((grossPnl / (riskDollars * pnlMultiplier(trade))).toFixed(2)) : null
+
+  const accountOptions = tradingAccounts.length > 0 ? tradingAccounts.map(a => a.name) : ['Live', 'Funded', 'Eval']
 
   const grossColor = grossPnl > 0 ? 'var(--color-win)' : grossPnl < 0 ? 'var(--color-loss)' : 'var(--text-dim)'
   const netColor = netPnl > 0 ? 'var(--color-win)' : netPnl < 0 ? 'var(--color-loss)' : 'var(--text-dim)'
@@ -660,7 +752,22 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
-              <div /><div /><div /><div />
+              {trade.copyTraded === 'Yes' ? (
+                <div>
+                  {fieldLabel('Copied To Accounts')}
+                  <MultiSelectDropdown
+                    options={accountOptions}
+                    selected={trade.copyTradedAccounts || []}
+                    onChange={next => set('copyTradedAccounts', next)}
+                  />
+                  {(trade.copyTradedAccounts || []).length > 0 && (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                      P&L ×{(trade.copyTradedAccounts || []).length} across {(trade.copyTradedAccounts || []).length} account{(trade.copyTradedAccounts || []).length !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              ) : <div />}
+              <div /><div /><div />
 
             </div>
           )}
@@ -683,63 +790,53 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 </div>
                 <div>
                   {fieldLabel('Draw on Liquidity')}
-                  <select value={(trade.dol || [])[0] || ''} onChange={e => set('dol', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {customDols.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={customDols}
+                    selected={trade.dol || []}
+                    onChange={next => set('dol', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Internal Range Liq')}
-                  <select value={(trade.internalRangeLiquidity || [])[0] || ''} onChange={e => set('internalRangeLiquidity', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`FVG (${tf})`}>{`FVG (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `FVG (${tf})`)}
+                    selected={trade.internalRangeLiquidity || []}
+                    onChange={next => set('internalRangeLiquidity', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('External Range Liq')}
-                  <select value={(trade.externalRangeLiquidity || [])[0] || ''} onChange={e => set('externalRangeLiquidity', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => (
-                      <option key={`${b}-${tf}`} value={`${b} (${tf})`}>{`${b} (${tf})`}</option>
-                    )))}
-                  </select>
+                  <MultiSelectDropdown
+                    options={(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => `${b} (${tf})`))}
+                    selected={trade.externalRangeLiquidity || []}
+                    onChange={next => set('externalRangeLiquidity', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Liquidity Swept')}
-                  <select value={(trade.liquiditySwept || [])[0] || ''} onChange={e => set('liquiditySwept', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => (
-                      <option key={`${b}-${tf}`} value={`${b} (${tf})`}>{`${b} (${tf})`}</option>
-                    )))}
-                  </select>
+                  <MultiSelectDropdown
+                    options={(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => `${b} (${tf})`))}
+                    selected={trade.liquiditySwept || []}
+                    onChange={next => set('liquiditySwept', next)}
+                  />
                 </div>
 
                 {/* Row 2: SMT Present | CISD Present | Displacement | FVG Present | iFVG Present */}
                 <div>
                   {fieldLabel('SMT Present')}
-                  <select value={(trade.smtPresent || [])[0] || ''} onChange={e => set('smtPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`SMT (${tf})`}>{`SMT (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `SMT (${tf})`)}
+                    selected={trade.smtPresent || []}
+                    onChange={next => set('smtPresent', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('CISD Present')}
-                  <select value={(trade.cisdPresent || [])[0] || ''} onChange={e => set('cisdPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`CISD (${tf})`}>{`CISD (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `CISD (${tf})`)}
+                    selected={trade.cisdPresent || []}
+                    onChange={next => set('cisdPresent', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Displacement')}
@@ -753,54 +850,45 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 </div>
                 <div>
                   {fieldLabel('FVG Present')}
-                  <select value={(trade.fvgPresent || [])[0] || ''} onChange={e => set('fvgPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`FVG (${tf})`}>{`FVG (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `FVG (${tf})`)}
+                    selected={trade.fvgPresent || []}
+                    onChange={next => set('fvgPresent', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('iFVG Present')}
-                  <select value={(trade.ifvgPresent || [])[0] || ''} onChange={e => set('ifvgPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`iFVG (${tf})`}>{`iFVG (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `iFVG (${tf})`)}
+                    selected={trade.ifvgPresent || []}
+                    onChange={next => set('ifvgPresent', next)}
+                  />
                 </div>
 
                 {/* Row 3: Rejection Block | OTE | STDV | Entry Model | Setup Type */}
                 <div>
                   {fieldLabel('Rejection Block')}
-                  <select value={(trade.rejectionBlock || [])[0] || ''} onChange={e => set('rejectionBlock', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`RB (${tf})`}>{`RB (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `RB (${tf})`)}
+                    selected={trade.rejectionBlock || []}
+                    onChange={next => set('rejectionBlock', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('OTE')}
-                  <select value={(trade.otePresent || [])[0] || ''} onChange={e => set('otePresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {TIMEFRAMES.map(tf => <option key={tf} value={`OTE (${tf})`}>{`OTE (${tf})`}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={TIMEFRAMES.map(tf => `OTE (${tf})`)}
+                    selected={trade.otePresent || []}
+                    onChange={next => set('otePresent', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('STDV')}
-                  <select value={(trade.stdvPresent || [])[0] || ''} onChange={e => set('stdvPresent', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {STDV_LEVELS.flatMap(n => TIMEFRAMES.map(tf => (
-                      <option key={`${n}-${tf}`} value={`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}>
-                        {`STDV ${n > 0 ? '+' : ''}${n} (${tf})`}
-                      </option>
-                    )))}
-                  </select>
+                  <MultiSelectDropdown
+                    options={STDV_LEVELS.flatMap(n => TIMEFRAMES.map(tf => `STDV ${n > 0 ? '+' : ''}${n} (${tf})`))}
+                    selected={trade.stdvPresent || []}
+                    onChange={next => set('stdvPresent', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Entry Model')}
@@ -843,12 +931,11 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 </div>
                 <div>
                   {fieldLabel('Exit Reason')}
-                  <select value={(trade.exitReason || [])[0] || ''} onChange={e => set('exitReason', e.target.value ? [e.target.value] : [])}
-                    style={selectBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                    <option value="">—</option>
-                    {customExitReasons.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <MultiSelectDropdown
+                    options={customExitReasons}
+                    selected={trade.exitReason || []}
+                    onChange={next => set('exitReason', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Target Logic')}
@@ -1038,12 +1125,25 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   const [customExitReasons, setCustomExitReasons] = useState<string[]>(() => loadCustomExitReasons())
   const [newExitReasonInput, setNewExitReasonInput] = useState('')
 
+  const pnlMultiplier = (t: TradeLog) =>
+    t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+
+  const computeStoredPnl = (t: TradeLog): string => {
+    const base = (t.exitPartials && t.exitPartials.length > 0)
+      ? calcPartialsPnl(t.symbol, t.side, t.entryPrice, t.exitPartials)
+      : calcTradePnl(t.symbol, t.side, t.entryPrice, t.exitPrice, t.contracts)
+    if (base === '') return ''
+    return (parseFloat(base) * pnlMultiplier(t)).toFixed(2)
+  }
+
   const set = <K extends keyof TradeLog>(k: K, v: TradeLog[K]) => {
     const next = { ...trade, [k]: v }
-    if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts'].includes(k as string))
-      next.pnl = calcTradePnl(next.symbol, next.side, next.entryPrice, next.exitPrice, next.contracts)
+    if (['symbol', 'side', 'entryPrice', 'exitPrice', 'contracts', 'copyTraded', 'copyTradedAccounts'].includes(k as string))
+      next.pnl = computeStoredPnl(next)
     onUpdate(next)
   }
+
+  const accountOptions = tradingAccounts.length > 0 ? tradingAccounts.map(a => a.name) : ['Live', 'Funded', 'Eval']
 
   const addDolInline = (raw: string) => {
     const val = raw.trim()
@@ -1087,7 +1187,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   const slPts = parseFloat(trade.stopLoss)
   const c = parseFloat(trade.contracts)
   const riskDollars = pv && !isNaN(slPts) && !isNaN(c) && c > 0 && slPts > 0 ? slPts * pv * c : 0
-  const rMultiple = riskDollars > 0 && hasPnl ? parseFloat((grossPnl / riskDollars).toFixed(2)) : null
+  const rMultiple = riskDollars > 0 && hasPnl ? parseFloat((grossPnl / (riskDollars * pnlMultiplier(trade))).toFixed(2)) : null
   const grossColor = grossPnl > 0 ? 'var(--color-win)' : grossPnl < 0 ? 'var(--color-loss)' : 'var(--text-dim)'
   const netColor = netPnl > 0 ? 'var(--color-win)' : netPnl < 0 ? 'var(--color-loss)' : 'var(--text-dim)'
   const rColor = rMultiple === null ? 'var(--text-dim)' : rMultiple >= 0 ? 'var(--color-win)' : 'var(--color-loss)'
@@ -1271,7 +1371,22 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
-          <div /><div /><div /><div />
+          {trade.copyTraded === 'Yes' ? (
+            <div>
+              {fieldLabel('Copied To Accounts')}
+              <MultiSelectDropdown
+                options={accountOptions}
+                selected={trade.copyTradedAccounts || []}
+                onChange={next => set('copyTradedAccounts', next)}
+              />
+              {(trade.copyTradedAccounts || []).length > 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  P&L ×{(trade.copyTradedAccounts || []).length} across {(trade.copyTradedAccounts || []).length} account{(trade.copyTradedAccounts || []).length !== 1 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          ) : <div />}
+          <div /><div /><div />
         </div>
 
         {/* ── ICT / Trade Context 5×5 ── */}
@@ -1292,57 +1407,53 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             </div>
             <div>
               {fieldLabel('Draw on Liquidity')}
-              <select value={(trade.dol || [])[0] || ''} onChange={e => set('dol', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {customDols.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={customDols}
+                selected={trade.dol || []}
+                onChange={next => set('dol', next)}
+              />
             </div>
             <div>
               {fieldLabel('Internal Range Liq')}
-              <select value={(trade.internalRangeLiquidity || [])[0] || ''} onChange={e => set('internalRangeLiquidity', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`FVG (${tf})`}>{`FVG (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `FVG (${tf})`)}
+                selected={trade.internalRangeLiquidity || []}
+                onChange={next => set('internalRangeLiquidity', next)}
+              />
             </div>
             <div>
               {fieldLabel('External Range Liq')}
-              <select value={(trade.externalRangeLiquidity || [])[0] || ''} onChange={e => set('externalRangeLiquidity', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => (
-                  <option key={`${b}-${tf}`} value={`${b} (${tf})`}>{`${b} (${tf})`}</option>
-                )))}
-              </select>
+              <MultiSelectDropdown
+                options={(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => `${b} (${tf})`))}
+                selected={trade.externalRangeLiquidity || []}
+                onChange={next => set('externalRangeLiquidity', next)}
+              />
             </div>
             <div>
               {fieldLabel('Liquidity Swept')}
-              <select value={(trade.liquiditySwept || [])[0] || ''} onChange={e => set('liquiditySwept', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => (
-                  <option key={`${b}-${tf}`} value={`${b} (${tf})`}>{`${b} (${tf})`}</option>
-                )))}
-              </select>
+              <MultiSelectDropdown
+                options={(['Swing High', 'Swing Low'] as const).flatMap(b => TIMEFRAMES.map(tf => `${b} (${tf})`))}
+                selected={trade.liquiditySwept || []}
+                onChange={next => set('liquiditySwept', next)}
+              />
             </div>
 
             {/* Row 2: SMT Present | CISD Present | Displacement | FVG Present | iFVG Present */}
             <div>
               {fieldLabel('SMT Present')}
-              <select value={(trade.smtPresent || [])[0] || ''} onChange={e => set('smtPresent', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`SMT (${tf})`}>{`SMT (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `SMT (${tf})`)}
+                selected={trade.smtPresent || []}
+                onChange={next => set('smtPresent', next)}
+              />
             </div>
             <div>
               {fieldLabel('CISD Present')}
-              <select value={(trade.cisdPresent || [])[0] || ''} onChange={e => set('cisdPresent', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`CISD (${tf})`}>{`CISD (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `CISD (${tf})`)}
+                selected={trade.cisdPresent || []}
+                onChange={next => set('cisdPresent', next)}
+              />
             </div>
             <div>
               {fieldLabel('Displacement')}
@@ -1355,29 +1466,29 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             </div>
             <div>
               {fieldLabel('FVG Present')}
-              <select value={(trade.fvgPresent || [])[0] || ''} onChange={e => set('fvgPresent', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`FVG (${tf})`}>{`FVG (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `FVG (${tf})`)}
+                selected={trade.fvgPresent || []}
+                onChange={next => set('fvgPresent', next)}
+              />
             </div>
             <div>
               {fieldLabel('iFVG Present')}
-              <select value={(trade.ifvgPresent || [])[0] || ''} onChange={e => set('ifvgPresent', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`iFVG (${tf})`}>{`iFVG (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `iFVG (${tf})`)}
+                selected={trade.ifvgPresent || []}
+                onChange={next => set('ifvgPresent', next)}
+              />
             </div>
 
             {/* Row 3: Rejection Block | Entry Model | Setup Type | Playbook Used | Timeframe Used */}
             <div>
               {fieldLabel('Rejection Block')}
-              <select value={(trade.rejectionBlock || [])[0] || ''} onChange={e => set('rejectionBlock', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {TIMEFRAMES.map(tf => <option key={tf} value={`RB (${tf})`}>{`RB (${tf})`}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={TIMEFRAMES.map(tf => `RB (${tf})`)}
+                selected={trade.rejectionBlock || []}
+                onChange={next => set('rejectionBlock', next)}
+              />
             </div>
             <div>
               {fieldLabel('Entry Model')}
@@ -1415,11 +1526,11 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             </div>
             <div>
               {fieldLabel('Exit Reason')}
-              <select value={(trade.exitReason || [])[0] || ''} onChange={e => set('exitReason', e.target.value ? [e.target.value] : [])}
-                style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
-                <option value="">—</option>
-                {customExitReasons.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <MultiSelectDropdown
+                options={customExitReasons}
+                selected={trade.exitReason || []}
+                onChange={next => set('exitReason', next)}
+              />
             </div>
             <div>
               {fieldLabel('Target Logic')}

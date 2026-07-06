@@ -586,6 +586,22 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
                 </select>
+                {trade.copyTraded === 'Yes' && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 5 }}>Copied to accounts</div>
+                    <MultiSelectDropdown
+                      options={accountOptions}
+                      selected={trade.copyTradedAccounts || []}
+                      onChange={next => set('copyTradedAccounts', next)}
+                      placeholder="Select accounts…"
+                    />
+                    <div style={{ fontSize: 12, color: (trade.copyTradedAccounts || []).length > 0 ? '#22c55e' : '#fbbf24', marginTop: 5, fontWeight: 600 }}>
+                      {(trade.copyTradedAccounts || []).length > 0
+                        ? `P&L ×${(trade.copyTradedAccounts || []).length} — summed across ${(trade.copyTradedAccounts || []).length} accounts`
+                        : 'Select every account this trade ran on to sum its P&L'}
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 {fieldLabel('Session')}
@@ -752,22 +768,7 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
-              {trade.copyTraded === 'Yes' ? (
-                <div>
-                  {fieldLabel('Copied To Accounts')}
-                  <MultiSelectDropdown
-                    options={accountOptions}
-                    selected={trade.copyTradedAccounts || []}
-                    onChange={next => set('copyTradedAccounts', next)}
-                  />
-                  {(trade.copyTradedAccounts || []).length > 0 && (
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                      P&L ×{(trade.copyTradedAccounts || []).length} across {(trade.copyTradedAccounts || []).length} account{(trade.copyTradedAccounts || []).length !== 1 ? 's' : ''}
-                    </div>
-                  )}
-                </div>
-              ) : <div />}
-              <div /><div /><div />
+              <div /><div /><div /><div />
 
             </div>
           )}
@@ -1262,6 +1263,22 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
+            {trade.copyTraded === 'Yes' && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, marginBottom: 5 }}>Copied to accounts</div>
+                <MultiSelectDropdown
+                  options={accountOptions}
+                  selected={trade.copyTradedAccounts || []}
+                  onChange={next => set('copyTradedAccounts', next)}
+                  placeholder="Select accounts…"
+                />
+                <div style={{ fontSize: 12, color: (trade.copyTradedAccounts || []).length > 0 ? '#22c55e' : '#fbbf24', marginTop: 5, fontWeight: 600 }}>
+                  {(trade.copyTradedAccounts || []).length > 0
+                    ? `P&L ×${(trade.copyTradedAccounts || []).length} — summed across ${(trade.copyTradedAccounts || []).length} accounts`
+                    : 'Select every account this trade ran on to sum its P&L'}
+                </div>
+              </div>
+            )}
           </div>
           <div>
             {fieldLabel('Session')}
@@ -1371,22 +1388,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
-          {trade.copyTraded === 'Yes' ? (
-            <div>
-              {fieldLabel('Copied To Accounts')}
-              <MultiSelectDropdown
-                options={accountOptions}
-                selected={trade.copyTradedAccounts || []}
-                onChange={next => set('copyTradedAccounts', next)}
-              />
-              {(trade.copyTradedAccounts || []).length > 0 && (
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                  P&L ×{(trade.copyTradedAccounts || []).length} across {(trade.copyTradedAccounts || []).length} account{(trade.copyTradedAccounts || []).length !== 1 ? 's' : ''}
-                </div>
-              )}
-            </div>
-          ) : <div />}
-          <div /><div /><div />
+          <div /><div /><div /><div />
         </div>
 
         {/* ── ICT / Trade Context 5×5 ── */}

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings, DiaryTemplate } from '../types'
+import { normalizeJournalEntries } from '../utils/stats'
 
 const DEFAULT_CONFLUENCES = [
   'Order Block', 'Fair Value Gap', 'Breaker Block', 'MSS', 'ChoCh',
@@ -62,7 +63,7 @@ export function useStore(userId: string) {
       }
 
       if (data) {
-        if (data.journal_entries) setJournalEntries(data.journal_entries)
+        if (data.journal_entries) setJournalEntries(normalizeJournalEntries(data.journal_entries))
         if (data.monthly_goals)   setMonthlyGoals(data.monthly_goals)
         if (data.confluence_tags) setConfluenceTags(data.confluence_tags)
         if (data.trading_rules)   setTradingRules(data.trading_rules)
@@ -73,7 +74,7 @@ export function useStore(userId: string) {
       } else {
         // First login — migrate any existing localStorage data
         const localData = {
-          journal_entries:  readLocal<JournalEntry[]>(LOCAL_KEYS.journal, []),
+          journal_entries:  normalizeJournalEntries(readLocal<JournalEntry[]>(LOCAL_KEYS.journal, [])),
           monthly_goals:    readLocal<MonthlyGoal[]>(LOCAL_KEYS.goals, []),
           confluence_tags:  readLocal<string[]>(LOCAL_KEYS.confluences, DEFAULT_CONFLUENCES),
           trading_rules:    readLocal<TradingRule[]>(LOCAL_KEYS.rules, []),

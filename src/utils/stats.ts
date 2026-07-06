@@ -1,4 +1,46 @@
-import type { JournalEntry, DashTrade } from '../types'
+import type { JournalEntry, DashTrade, TradeLog } from '../types'
+
+const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
+
+// Number of accounts a trade's P&L should be summed across (copy trading).
+export function copyMultiplier(t: Pick<TradeLog, 'copyTraded' | 'copyTradedAccounts'>): number {
+  return t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+}
+
+// Per-account gross P&L derived from prices (single account, no copy multiplier).
+function baseTradePnl(t: TradeLog): string {
+  const pv = PVMAP[t.symbol]
+  if (!pv) return ''
+  const e = parseFloat(t.entryPrice)
+  if (isNaN(e) || e === 0) return ''
+  if (t.exitPartials && t.exitPartials.length > 0) {
+    let total = 0
+    let any = false
+    for (const p of t.exitPartials) {
+      const price = parseFloat(p.price), qty = parseFloat(p.qty)
+      if (isNaN(price) || isNaN(qty) || qty <= 0) continue
+      any = true
+      total += (t.side === 'Long' ? price - e : e - price) * pv * qty
+    }
+    return any ? total.toFixed(2) : ''
+  }
+  const x = parseFloat(t.exitPrice), c = parseFloat(t.contracts)
+  if (isNaN(x) || isNaN(c) || c <= 0 || x === 0) return ''
+  return ((t.side === 'Long' ? x - e : e - x) * pv * c).toFixed(2)
+}
+
+// Recompute each trade's stored gross P&L = per-account base × number of copied accounts,
+// so copy-traded trades sum correctly everywhere (calendar, stats, popups). Idempotent;
+// leaves a trade's stored P&L untouched when it can't be derived from prices.
+export function normalizeJournalEntries(entries: JournalEntry[]): JournalEntry[] {
+  return entries.map(entry => ({
+    ...entry,
+    trades: entry.trades.map(t => {
+      const base = baseTradePnl(t)
+      return base === '' ? t : { ...t, pnl: (parseFloat(base) * copyMultiplier(t)).toFixed(2) }
+    }),
+  }))
+}
 
 export function getDashTrades(entries: JournalEntry[]): DashTrade[] {
   return entries.flatMap(entry =>

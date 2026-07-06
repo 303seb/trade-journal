@@ -2,9 +2,10 @@ import type { JournalEntry, DashTrade, TradeLog } from '../types'
 
 const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
 
-// Number of accounts a trade's P&L should be summed across (copy trading).
+// Number of accounts a trade's P&L should be summed across: the original account
+// the trade was placed on plus every account it was copy traded to.
 export function copyMultiplier(t: Pick<TradeLog, 'copyTraded' | 'copyTradedAccounts'>): number {
-  return t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+  return t.copyTraded === 'Yes' ? 1 + (t.copyTradedAccounts?.length ?? 0) : 1
 }
 
 // Per-account gross P&L derived from prices (single account, no copy multiplier).

@@ -358,9 +358,9 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // P&L multiplies across every account the trade was copy traded to.
+  // P&L sums across the original account + every account the trade was copy traded to.
   const pnlMultiplier = (t: TradeLog) =>
-    t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+    t.copyTraded === 'Yes' ? 1 + (t.copyTradedAccounts?.length ?? 0) : 1
 
   const computeStoredPnl = (t: TradeLog): string => {
     const base = (t.exitPartials && t.exitPartials.length > 0)
@@ -597,8 +597,8 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     />
                     <div style={{ fontSize: 12, color: (trade.copyTradedAccounts || []).length > 0 ? '#22c55e' : '#fbbf24', marginTop: 5, fontWeight: 600 }}>
                       {(trade.copyTradedAccounts || []).length > 0
-                        ? `P&L ×${(trade.copyTradedAccounts || []).length} — summed across ${(trade.copyTradedAccounts || []).length} accounts`
-                        : 'Select every account this trade ran on to sum its P&L'}
+                        ? `P&L ×${1 + (trade.copyTradedAccounts || []).length} — original + ${(trade.copyTradedAccounts || []).length} copied = ${1 + (trade.copyTradedAccounts || []).length} accounts`
+                        : 'Select the account(s) this trade was copied to, to sum its P&L'}
                     </div>
                   </div>
                 )}
@@ -1127,7 +1127,7 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   const [newExitReasonInput, setNewExitReasonInput] = useState('')
 
   const pnlMultiplier = (t: TradeLog) =>
-    t.copyTraded === 'Yes' && (t.copyTradedAccounts?.length ?? 0) > 0 ? (t.copyTradedAccounts as string[]).length : 1
+    t.copyTraded === 'Yes' ? 1 + (t.copyTradedAccounts?.length ?? 0) : 1
 
   const computeStoredPnl = (t: TradeLog): string => {
     const base = (t.exitPartials && t.exitPartials.length > 0)

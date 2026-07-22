@@ -72,7 +72,7 @@ export interface TradeLog {
   notes?: string           // post-trade reflections
 
   // ICT / Trade Context
-  htfBias?: string                  // 'Long' | 'Short' | ''
+  htfBias?: string                  // 'Bullish' | 'Bearish' | 'Neutral' | ''
   internalRangeLiquidity?: string[] // e.g. ["FVG (5m)", "FVG (15m)"]
   externalRangeLiquidity?: string[] // e.g. ["Swing High (Daily)"]
   liquiditySwept?: string[]         // e.g. ["Swing Low (15m)"]
@@ -82,11 +82,11 @@ export interface TradeLog {
   fvgPresent?: string[]             // e.g. ["FVG (5m)"]
   ifvgPresent?: string[]            // e.g. ["iFVG (1m)"]
   rejectionBlock?: string[]         // e.g. ["Rejection Block (15m)"]
-  entryModel?: string
+  entryModel?: string[]             // custom entry models (library-backed multi-select)
   setupType?: string
   timeframeExecuted?: string        // e.g. "5m"
-  marketCondition?: string          // 'Consolidation' | 'Distribution' | ''
-  exitReason?: string[]             // ["Full TP", "Swept Internal High/Low", "SMT"]
+  marketCondition?: string          // 'ERL to IRL' | 'IRL to ERL' | ''
+  exitReason?: string[]             // ["Full TP", "Partials", "Trailed Out", "BE", "Stop Loss"]
   newsPresent?: string              // 'Yes' | 'No' | ''
   newsType?: string
   screenshots?: string[]            // base64 encoded images (dynamic list)

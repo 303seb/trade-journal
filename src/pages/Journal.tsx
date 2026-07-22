@@ -46,7 +46,7 @@ function emptyTrade(): TradeLog {
     fvgPresent: [],
     ifvgPresent: [],
     rejectionBlock: [],
-    entryModel: '',
+    entryModel: [],
     setupType: '',
     timeframeExecuted: '',
     marketCondition: '',
@@ -174,8 +174,12 @@ const SESSION_OPTIONS = [
   { value: 'New York AM Session', label: 'New York AM Session' },
   { value: 'Pre-market Asia Session', label: 'Pre-market Asia Session' },
 ]
+const EXIT_REASONS = ['Full TP', 'Partials', 'Trailed Out', 'BE', 'Stop Loss']
+const MARKET_CONDITIONS = ['ERL to IRL', 'IRL to ERL']
+const HTF_BIAS_OPTIONS = ['Bullish', 'Bearish', 'Neutral']
+
 const DOL_STORAGE_KEY = 'journal_custom_dols'
-const EXIT_REASON_STORAGE_KEY = 'journal_custom_exit_reasons'
+const ENTRY_MODEL_STORAGE_KEY = 'journal_custom_entry_models'
 
 function loadCustomDols(): string[] {
   try { return JSON.parse(localStorage.getItem(DOL_STORAGE_KEY) || '[]') } catch { return [] }
@@ -183,12 +187,14 @@ function loadCustomDols(): string[] {
 function saveCustomDols(dols: string[]) {
   localStorage.setItem(DOL_STORAGE_KEY, JSON.stringify(dols))
 }
-function loadCustomExitReasons(): string[] {
-  try { return JSON.parse(localStorage.getItem(EXIT_REASON_STORAGE_KEY) || '[]') } catch { return [] }
+function loadCustomEntryModels(): string[] {
+  try { return JSON.parse(localStorage.getItem(ENTRY_MODEL_STORAGE_KEY) || '[]') } catch { return [] }
 }
-function saveCustomExitReasons(reasons: string[]) {
-  localStorage.setItem(EXIT_REASON_STORAGE_KEY, JSON.stringify(reasons))
+function saveCustomEntryModels(models: string[]) {
+  localStorage.setItem(ENTRY_MODEL_STORAGE_KEY, JSON.stringify(models))
 }
+// Coerce a possibly-legacy string field into a string[] for multi-select fields.
+const asArray = (v: unknown): string[] => Array.isArray(v) ? v as string[] : (v ? [String(v)] : [])
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
@@ -347,8 +353,8 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
   const [screenshots, setScreenshots] = useState<string[]>([''])
   const [customDols, setCustomDols] = useState<string[]>(() => loadCustomDols())
   const [newDolInput, setNewDolInput] = useState('')
-  const [customExitReasons, setCustomExitReasons] = useState<string[]>(() => loadCustomExitReasons())
-  const [newExitReasonInput, setNewExitReasonInput] = useState('')
+  const [customEntryModels, setCustomEntryModels] = useState<string[]>(() => loadCustomEntryModels())
+  const [newEntryModelInput, setNewEntryModelInput] = useState('')
   const [newExitPriceInput, setNewExitPriceInput] = useState('')
   const [newExitQtyInput, setNewExitQtyInput] = useState('')
 
@@ -428,21 +434,21 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
     saveCustomDols(updated)
   }
 
-  const addExitReason = (raw: string) => {
+  const addEntryModel = (raw: string) => {
     const val = raw.trim()
     if (!val) return
-    const updated = customExitReasons.includes(val) ? customExitReasons : [...customExitReasons, val]
-    setCustomExitReasons(updated)
-    saveCustomExitReasons(updated)
-    const cur = trade.exitReason || []
-    if (!cur.includes(val)) set('exitReason', [...cur, val])
-    setNewExitReasonInput('')
+    const updated = customEntryModels.includes(val) ? customEntryModels : [...customEntryModels, val]
+    setCustomEntryModels(updated)
+    saveCustomEntryModels(updated)
+    const cur = asArray(trade.entryModel)
+    if (!cur.includes(val)) set('entryModel', [...cur, val])
+    setNewEntryModelInput('')
   }
 
-  const removeExitReasonFromLibrary = (val: string) => {
-    const updated = customExitReasons.filter(r => r !== val)
-    setCustomExitReasons(updated)
-    saveCustomExitReasons(updated)
+  const removeEntryModelFromLibrary = (val: string) => {
+    const updated = customEntryModels.filter(m => m !== val)
+    setCustomEntryModels(updated)
+    saveCustomEntryModels(updated)
   }
 
   // Auto-calculated P&L
@@ -782,11 +788,10 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 <div>
                   {fieldLabel('HTF Bias')}
                   <select value={trade.htfBias || ''} onChange={e => set('htfBias', e.target.value)}
-                    style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22c55e' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
+                    style={{ ...selectBase, color: trade.htfBias === 'Bullish' ? '#22c55e' : trade.htfBias === 'Bearish' ? 'var(--color-loss)' : 'var(--text)' }}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                     <option value="">—</option>
-                    <option value="Long">Long</option>
-                    <option value="Short">Short</option>
+                    {HTF_BIAS_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
                 <div>
@@ -893,9 +898,11 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                 </div>
                 <div>
                   {fieldLabel('Entry Model')}
-                  <input value={trade.entryModel || ''} onChange={e => set('entryModel', e.target.value)}
-                    placeholder="e.g. Silver Bullet" style={inputBase}
-                    onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+                  <MultiSelectDropdown
+                    options={customEntryModels}
+                    selected={asArray(trade.entryModel)}
+                    onChange={next => set('entryModel', next)}
+                  />
                 </div>
                 <div>
                   {fieldLabel('Setup Type')}
@@ -926,14 +933,13 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                     style={selectBase}
                     onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                     <option value="">—</option>
-                    <option value="Consolidation">Consolidation</option>
-                    <option value="Distribution">Distribution</option>
+                    {MARKET_CONDITIONS.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   {fieldLabel('Exit Reason')}
                   <MultiSelectDropdown
-                    options={customExitReasons}
+                    options={EXIT_REASONS}
                     selected={trade.exitReason || []}
                     onChange={next => set('exitReason', next)}
                   />
@@ -1018,24 +1024,24 @@ function NewTradeModal({ initialDate, onSave, onClose, tradingAccounts }: {
                   )}
                 </div>
                 <div>
-                  {fieldLabel('Exit Reason Library')}
+                  {fieldLabel('Entry Model Library')}
                   <div style={{ display: 'flex', gap: 5 }}>
-                    <input value={newExitReasonInput} onChange={e => setNewExitReasonInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitReason(newExitReasonInput) } }}
-                      placeholder="Add exit reason to library…"
+                    <input value={newEntryModelInput} onChange={e => setNewEntryModelInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEntryModel(newEntryModelInput) } }}
+                      placeholder="Add entry model to library…"
                       style={{ ...inputBase, fontSize: 14, padding: '7px 10px' }}
                       onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')}
                       onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                    <button onClick={() => addExitReason(newExitReasonInput)} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s' }}
+                    <button onClick={() => addEntryModel(newEntryModelInput)} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s' }}
                       onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
                       onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}>+</button>
                   </div>
-                  {customExitReasons.length > 0 && (
+                  {customEntryModels.length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                      {customExitReasons.map(r => (
-                        <span key={r} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
-                          {r}
-                          <button onClick={() => removeExitReasonFromLibrary(r)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                      {customEntryModels.map(m => (
+                        <span key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
+                          {m}
+                          <button onClick={() => removeEntryModelFromLibrary(m)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
                             onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-loss)')}
                             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                           ><X size={9} /></button>
@@ -1123,8 +1129,8 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [customDols, setCustomDols] = useState<string[]>(() => loadCustomDols())
   const [newDolInput, setNewDolInput] = useState('')
-  const [customExitReasons, setCustomExitReasons] = useState<string[]>(() => loadCustomExitReasons())
-  const [newExitReasonInput, setNewExitReasonInput] = useState('')
+  const [customEntryModels, setCustomEntryModels] = useState<string[]>(() => loadCustomEntryModels())
+  const [newEntryModelInput, setNewEntryModelInput] = useState('')
 
   const pnlMultiplier = (t: TradeLog) =>
     t.copyTraded === 'Yes' ? 1 + (t.copyTradedAccounts?.length ?? 0) : 1
@@ -1163,21 +1169,21 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
     saveCustomDols(updated)
   }
 
-  const addExitReasonInline = (raw: string) => {
+  const addEntryModelInline = (raw: string) => {
     const val = raw.trim()
     if (!val) return
-    const updated = customExitReasons.includes(val) ? customExitReasons : [...customExitReasons, val]
-    setCustomExitReasons(updated)
-    saveCustomExitReasons(updated)
-    const cur = trade.exitReason || []
-    if (!cur.includes(val)) set('exitReason', [...cur, val])
-    setNewExitReasonInput('')
+    const updated = customEntryModels.includes(val) ? customEntryModels : [...customEntryModels, val]
+    setCustomEntryModels(updated)
+    saveCustomEntryModels(updated)
+    const cur = asArray(trade.entryModel)
+    if (!cur.includes(val)) set('entryModel', [...cur, val])
+    setNewEntryModelInput('')
   }
 
-  const removeExitReasonFromLibraryInline = (val: string) => {
-    const updated = customExitReasons.filter(r => r !== val)
-    setCustomExitReasons(updated)
-    saveCustomExitReasons(updated)
+  const removeEntryModelFromLibraryInline = (val: string) => {
+    const updated = customEntryModels.filter(m => m !== val)
+    setCustomEntryModels(updated)
+    saveCustomEntryModels(updated)
   }
 
   const grossPnl = parseFloat(trade.pnl) || 0
@@ -1400,11 +1406,10 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             <div>
               {fieldLabel('HTF Bias')}
               <select value={trade.htfBias || ''} onChange={e => set('htfBias', e.target.value)}
-                style={{ ...selectBase, color: trade.htfBias === 'Long' ? '#22c55e' : trade.htfBias === 'Short' ? 'var(--color-loss)' : 'var(--text)' }}
+                style={{ ...selectBase, color: trade.htfBias === 'Bullish' ? '#22c55e' : trade.htfBias === 'Bearish' ? 'var(--color-loss)' : 'var(--text)' }}
                 onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                 <option value="">—</option>
-                <option value="Long">Long</option>
-                <option value="Short">Short</option>
+                {HTF_BIAS_OPTIONS.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div>
@@ -1494,8 +1499,11 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
             </div>
             <div>
               {fieldLabel('Entry Model')}
-              <input value={trade.entryModel || ''} onChange={e => set('entryModel', e.target.value)}
-                placeholder="e.g. Silver Bullet" style={inputBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+              <MultiSelectDropdown
+                options={customEntryModels}
+                selected={asArray(trade.entryModel)}
+                onChange={next => set('entryModel', next)}
+              />
             </div>
             <div>
               {fieldLabel('Setup Type')}
@@ -1522,14 +1530,13 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               <select value={trade.marketCondition || ''} onChange={e => set('marketCondition', e.target.value)}
                 style={selectBase} onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}>
                 <option value="">—</option>
-                <option value="Consolidation">Consolidation</option>
-                <option value="Distribution">Distribution</option>
+                {MARKET_CONDITIONS.map(m => <option key={m} value={m}>{m}</option>)}
               </select>
             </div>
             <div>
               {fieldLabel('Exit Reason')}
               <MultiSelectDropdown
-                options={customExitReasons}
+                options={EXIT_REASONS}
                 selected={trade.exitReason || []}
                 onChange={next => set('exitReason', next)}
               />
@@ -1610,24 +1617,24 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
               )}
             </div>
             <div>
-              {fieldLabel('Exit Reason Library')}
+              {fieldLabel('Entry Model Library')}
               <div style={{ display: 'flex', gap: 5 }}>
-                <input value={newExitReasonInput} onChange={e => setNewExitReasonInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExitReasonInline(newExitReasonInput) } }}
-                  placeholder="Add exit reason to library…"
+                <input value={newEntryModelInput} onChange={e => setNewEntryModelInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEntryModelInline(newEntryModelInput) } }}
+                  placeholder="Add entry model to library…"
                   style={{ ...inputBase, fontSize: 14, padding: '7px 10px' }}
                   onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
-                <button onClick={() => addExitReasonInline(newExitReasonInput)} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s' }}
+                <button onClick={() => addEntryModelInline(newEntryModelInput)} style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', fontSize: 16, fontWeight: 600, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
                   onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}>+</button>
               </div>
-              {customExitReasons.length > 0 && (
+              {customEntryModels.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                  {customExitReasons.map(r => (
-                    <span key={r} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
-                      {r}
-                      <button onClick={() => removeExitReasonFromLibraryInline(r)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
+                  {customEntryModels.map(m => (
+                    <span key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 7px 3px 10px', borderRadius: 999, fontSize: 13, background: 'var(--bg-active)', border: '1px solid var(--border-mid)', color: 'var(--text)' }}>
+                      {m}
+                      <button onClick={() => removeEntryModelFromLibraryInline(m)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', lineHeight: 1, transition: 'color 0.15s' }}
                         onMouseEnter={e => (e.currentTarget.style.color = 'var(--color-loss)')}
                         onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
                       ><X size={9} /></button>

@@ -59,6 +59,50 @@ function StatCard({ label, value, sub, positive, icon }: {
   )
 }
 
+// ── Breakdown performance table (confluence / DOL / bias / …) ──────────────────
+
+interface PerfRow { label: string; pnl: number; wins: number; total: number; winRate: number }
+
+function PerfTable({ title, firstCol, data, emptyText }: {
+  title: string; firstCol: string; data: PerfRow[]; emptyText: string
+}) {
+  return (
+    <div style={CARD}>
+      <p style={CHART_TITLE}>{title}</p>
+      {data.length === 0 ? (
+        <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: 16, fontWeight: 600 }}>{emptyText}</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {[firstCol, 'Trades', 'Wins', 'Win Rate', 'Total P&L', 'Avg P&L'].map(h => (
+                  <th key={h} style={{ padding: '6px 12px', textAlign: h === firstCol ? 'left' : 'right', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, i) => {
+                const avgPnl = row.total > 0 ? row.pnl / row.total : 0
+                return (
+                  <tr key={row.label} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-surface)' }}>
+                    <td style={{ padding: '9px 12px', color: 'var(--text)', fontWeight: 600 }}>{row.label}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-sub)' }}>{row.total}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>{row.wins}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', color: row.winRate >= 50 ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{row.winRate.toFixed(1)}%</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', color: row.pnl >= 0 ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{row.pnl >= 0 ? '+' : ''}{formatCurrency(row.pnl)}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'right', color: avgPnl >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{avgPnl >= 0 ? '+' : ''}{formatCurrency(avgPnl)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Analytics page ────────────────────────────────────────────────────────────
 
 interface AnalyticsProps {
@@ -233,19 +277,31 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
     .map(([label, d]) => ({ label, pnl: parseFloat(d.pnl.toFixed(2)), wins: d.wins, losses: d.losses, total: d.total, winRate: d.total > 0 ? (d.wins / d.total) * 100 : 0 }))
     .sort((a, b) => b.total - a.total)
 
-  // ── Confluence Performance ──
-  const confluencePerfMap = new Map<string, { pnl: number; wins: number; total: number }>()
-  filteredTrades.forEach(t => {
-    const confs = t.confluences || []
-    const pnl = netOf(t)
-    confs.forEach(c => {
-      const cur = confluencePerfMap.get(c) ?? { pnl: 0, wins: 0, total: 0 }
-      confluencePerfMap.set(c, { pnl: cur.pnl + pnl, wins: cur.wins + (pnl > 0 ? 1 : 0), total: cur.total + 1 })
+  // ── Breakdown builder: one row per key, a trade can contribute to many keys ──
+  const buildPerf = (getKeys: (t: typeof filteredTrades[number]) => string[]): PerfRow[] => {
+    const m = new Map<string, { pnl: number; wins: number; total: number }>()
+    filteredTrades.forEach(t => {
+      const pnl = netOf(t)
+      const keys = Array.from(new Set(getKeys(t).filter(Boolean)))
+      keys.forEach(k => {
+        const cur = m.get(k) ?? { pnl: 0, wins: 0, total: 0 }
+        m.set(k, { pnl: cur.pnl + pnl, wins: cur.wins + (pnl > 0 ? 1 : 0), total: cur.total + 1 })
+      })
     })
-  })
-  const confluencePerfData = Array.from(confluencePerfMap.entries())
-    .map(([label, d]) => ({ label, pnl: parseFloat(d.pnl.toFixed(2)), wins: d.wins, total: d.total, winRate: d.total > 0 ? (d.wins / d.total) * 100 : 0 }))
-    .sort((a, b) => b.total - a.total)
+    return Array.from(m.entries())
+      .map(([label, d]) => ({ label, pnl: parseFloat(d.pnl.toFixed(2)), wins: d.wins, total: d.total, winRate: d.total > 0 ? (d.wins / d.total) * 100 : 0 }))
+      .sort((a, b) => b.total - a.total)
+  }
+
+  // ── Confluence Performance (across every ICT confluence field on the trade) ──
+  const CONFLUENCE_FIELDS = ['confluences', 'smtPresent', 'cisdPresent', 'fvgPresent', 'ifvgPresent', 'rejectionBlock', 'otePresent', 'stdvPresent', 'orderBlock', 'bprPresent', 'internalRangeLiquidity', 'externalRangeLiquidity', 'liquiditySwept'] as const
+  const confluencePerfData = buildPerf(t => CONFLUENCE_FIELDS.flatMap(f => (t[f] as string[] | undefined) || []))
+
+  // ── DOL Performance (Draw on Liquidity) ──
+  const dolPerfData = buildPerf(t => t.dol || [])
+
+  // ── Bias Performance (HTF Bias) ──
+  const biasPerfData = buildPerf(t => (t.htfBias ? [t.htfBias] : []))
 
   // ── R Multiple Distribution ──
   const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
@@ -596,39 +652,13 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
         </div>
 
         {/* ── Confluence Performance Table ── */}
-        <div style={CARD}>
-          <p style={CHART_TITLE}>Confluence Performance</p>
-          {confluencePerfData.length === 0 ? (
-            <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-dim)', fontSize: 16, fontWeight: 600 }}>No confluence data yet</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Confluence', 'Trades', 'Wins', 'Win Rate', 'Total P&L', 'Avg P&L'].map(h => (
-                      <th key={h} style={{ padding: '6px 12px', textAlign: h === 'Confluence' ? 'left' : 'right', fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {confluencePerfData.map((row, i) => {
-                    const avgPnl = row.total > 0 ? row.pnl / row.total : 0
-                    return (
-                      <tr key={row.label} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-surface)' }}>
-                        <td style={{ padding: '9px 12px', color: 'var(--text)', fontWeight: 600 }}>{row.label}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: 'var(--text-sub)' }}>{row.total}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>{row.wins}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: row.winRate >= 50 ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{row.winRate.toFixed(1)}%</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: row.pnl >= 0 ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{row.pnl >= 0 ? '+' : ''}{formatCurrency(row.pnl)}</td>
-                        <td style={{ padding: '9px 12px', textAlign: 'right', color: avgPnl >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{avgPnl >= 0 ? '+' : ''}{formatCurrency(avgPnl)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        <PerfTable title="Confluence Performance" firstCol="Confluence" data={confluencePerfData} emptyText="No confluence data yet" />
+
+        {/* ── DOL Performance Table ── */}
+        <PerfTable title="DOL Performance" firstCol="Draw on Liquidity" data={dolPerfData} emptyText="No DOL data yet" />
+
+        {/* ── Bias Performance Table ── */}
+        <PerfTable title="Bias Performance" firstCol="HTF Bias" data={biasPerfData} emptyText="No bias data yet" />
 
         {/* ── R Multiple Distribution ── */}
         <div style={CARD}>

@@ -21,13 +21,13 @@ function calcPnl(symbol: string, side: 'Long' | 'Short', entry: string, exit: st
 }
 
 function buildTrade(f: {
-  symbol: string; account: string; side: 'Long' | 'Short'; entryPrice: string; exitPrice: string; contracts: string; pnl: string; result: TradeLog['result']
+  symbol: string; account: string; side: 'Long' | 'Short'; entryPrice: string; exitPrice: string; contracts: string; pnl: string; fees: string; result: TradeLog['result']
 }): TradeLog {
   return {
     id: uid(), result: f.result, accounts: f.account ? [f.account] : [],
     symbol: f.symbol, side: f.side, contracts: f.contracts,
     entryPrice: f.entryPrice, exitPrice: f.exitPrice, exitPartials: [], targetPrice: '',
-    takeProfit: '', stopLoss: '', pnl: f.pnl, fees: '', drawdown: '',
+    takeProfit: '', stopLoss: '', pnl: f.pnl, fees: f.fees, drawdown: '',
     duration: '', tradeNumber: '', confluences: [], sessions: [], dol: [],
     setup: '', grade: '', time: '', notes: '',
     htfBias: '', internalRangeLiquidity: [], externalRangeLiquidity: [], liquiditySwept: [],
@@ -67,6 +67,7 @@ export function QuickAddModal({ initialDate, tradingAccounts, onSave, onClose }:
   const [entryPrice, setEntryPrice] = useState('')
   const [exitPrice, setExitPrice] = useState('')
   const [contracts, setContracts] = useState('')
+  const [fees, setFees] = useState('')
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
@@ -77,16 +78,16 @@ export function QuickAddModal({ initialDate, tradingAccounts, onSave, onClose }:
 
   const accountOptions = tradingAccounts.length > 0 ? tradingAccounts.map(a => a.name) : ['Live', 'Funded', 'Eval']
   const pnl = calcPnl(symbol, side, entryPrice, exitPrice, contracts)
-  const pnlNum = parseFloat(pnl) || 0
   const hasPnl = pnl !== ''
-  const result: TradeLog['result'] = pnlNum > 0 ? 'Win' : pnlNum < 0 ? 'Loss' : 'BE'
-  const pnlColor = pnlNum > 0 ? '#22c55e' : pnlNum < 0 ? '#ef4444' : 'var(--text-dim)'
+  const netPnl = (parseFloat(pnl) || 0) - (parseFloat(fees) || 0)
+  const result: TradeLog['result'] = netPnl > 0 ? 'Win' : netPnl < 0 ? 'Loss' : 'BE'
+  const pnlColor = netPnl > 0 ? '#22c55e' : netPnl < 0 ? '#ef4444' : 'var(--text-dim)'
 
   const canSave = symbol !== '' && entryPrice !== '' && exitPrice !== '' && contracts !== ''
 
   function handleSave() {
     if (!canSave) return
-    onSave(buildTrade({ symbol, account, side, entryPrice, exitPrice, contracts, pnl, result }), date)
+    onSave(buildTrade({ symbol, account, side, entryPrice, exitPrice, contracts, pnl, fees, result }), date)
     setSaved(true)
     setTimeout(() => onClose(), 600)
   }
@@ -144,7 +145,7 @@ export function QuickAddModal({ initialDate, tradingAccounts, onSave, onClose }:
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               {label('Entry')}
               <input type="number" value={entryPrice} onChange={e => setEntryPrice(e.target.value)} placeholder="0" style={inputStyle}
@@ -160,14 +161,19 @@ export function QuickAddModal({ initialDate, tradingAccounts, onSave, onClose }:
               <input type="number" value={contracts} onChange={e => setContracts(e.target.value)} placeholder="1" min="0" style={inputStyle}
                 onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
             </div>
+            <div>
+              {label('Fees $')}
+              <input type="number" value={fees} onChange={e => setFees(e.target.value)} placeholder="0.00" min="0" step="0.01" style={inputStyle}
+                onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
+            </div>
           </div>
 
-          {/* Live P&L preview */}
+          {/* Live net P&L preview */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderRadius: 10,
-            background: hasPnl && pnlNum !== 0 ? (pnlNum > 0 ? 'var(--color-win-bg)' : 'var(--color-loss-bg)') : 'var(--bg)',
-            border: `1px solid ${hasPnl && pnlNum !== 0 ? (pnlNum > 0 ? 'var(--color-win-border)' : 'var(--color-loss-border)') : 'var(--border)'}` }}>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>P&L · {hasPnl ? result : '—'}</span>
-            <span style={{ fontSize: 20, fontWeight: 800, color: pnlColor }}>{hasPnl ? (pnlNum >= 0 ? '+' : '') + formatCurrency(pnlNum) : '—'}</span>
+            background: hasPnl && netPnl !== 0 ? (netPnl > 0 ? 'var(--color-win-bg)' : 'var(--color-loss-bg)') : 'var(--bg)',
+            border: `1px solid ${hasPnl && netPnl !== 0 ? (netPnl > 0 ? 'var(--color-win-border)' : 'var(--color-loss-border)') : 'var(--border)'}` }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Net P&L · {hasPnl ? result : '—'}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: pnlColor }}>{hasPnl ? (netPnl >= 0 ? '+' : '') + formatCurrency(netPnl) : '—'}</span>
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>

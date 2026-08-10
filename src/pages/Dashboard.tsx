@@ -5,6 +5,8 @@ import { StatCard } from '../components/StatCard'
 import { IncomeGoal } from '../components/IncomeGoal'
 import { MonthCalendar } from '../components/MonthCalendar'
 import { DashboardCharts } from '../components/DashboardCharts'
+import { QuickAddModal } from '../components/QuickAddModal'
+import { Zap } from 'lucide-react'
 import {
   getDashTrades,
   getMonthTrades,
@@ -18,7 +20,7 @@ import {
 } from '../utils/stats'
 
 const PVMAP: Record<string, number> = { NQ: 20, MNQ: 2, ES: 50, MES: 5, GC: 100, MGC: 10 }
-import type { JournalEntry, TradingRule, TradeLog } from '../types'
+import type { JournalEntry, TradingRule, TradeLog, TradingAccount } from '../types'
 
 const QUOTES = [
   { text: "The goal of a successful trader is to make the best trades. Money is secondary.", author: "Alexander Elder" },
@@ -47,14 +49,17 @@ interface DashboardProps {
   journalEntries: JournalEntry[]
   monthlyGoals: { month: string; amount: number }[]
   tradingRules: TradingRule[]
+  tradingAccounts: TradingAccount[]
   onSetGoal: (month: string, amount: number) => void
   onNavigateToJournal: (date?: string) => void
   onNavigateToDiary?: (date: string) => void
+  onQuickAddTrade: (trade: TradeLog, date: string) => void
   diaryDates?: string[]
 }
 
-export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoal, onNavigateToJournal, onNavigateToDiary, diaryDates }: DashboardProps) {
+export function Dashboard({ journalEntries, monthlyGoals, tradingRules, tradingAccounts, onSetGoal, onNavigateToJournal, onNavigateToDiary, onQuickAddTrade, diaryDates }: DashboardProps) {
   const isMobile = useMobile()
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -131,20 +136,44 @@ export function Dashboard({ journalEntries, monthlyGoals, tradingRules, onSetGoa
           <span style={{ fontSize: isMobile ? 11 : 13, color: 'var(--text-dim)', fontWeight: 600, marginTop: 2, letterSpacing: '0.04em' }}>ET · New York</span>
         </div>
 
-        <button
-          onClick={() => onNavigateToJournal(todayStr)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px',
-            background: 'var(--btn-bg)', color: 'var(--btn-text)', borderRadius: 10, border: 'none',
-            fontSize: 16, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--btn-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}
-        >
-          <NotebookPen size={15} />
-          {isMobile ? 'Log Trade' : 'Add Journal Entry'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowQuickAdd(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7, padding: isMobile ? '9px 12px' : '9px 16px',
+              background: 'transparent', color: 'var(--text-sub)', borderRadius: 10, border: '1px solid var(--border-strong)',
+              fontSize: isMobile ? 14 : 16, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}
+          >
+            <Zap size={15} />
+            Quick Add
+          </button>
+          <button
+            onClick={() => onNavigateToJournal(todayStr)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '9px 12px' : '9px 18px',
+              background: 'var(--btn-bg)', color: 'var(--btn-text)', borderRadius: 10, border: 'none',
+              fontSize: isMobile ? 14 : 16, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s', whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--btn-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}
+          >
+            <NotebookPen size={15} />
+            {isMobile ? 'Log' : 'Add Journal Entry'}
+          </button>
+        </div>
       </div>
+
+      {showQuickAdd && (
+        <QuickAddModal
+          initialDate={todayStr}
+          tradingAccounts={tradingAccounts}
+          onSave={onQuickAddTrade}
+          onClose={() => setShowQuickAdd(false)}
+        />
+      )}
 
       {/* Stats — 6 cards */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(6, 1fr)', gap: isMobile ? 8 : 12 }}>

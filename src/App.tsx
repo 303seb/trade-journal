@@ -13,6 +13,7 @@ import { useStore } from './store/useStore'
 import { useMobile } from './hooks/useMobile'
 import { supabase } from './lib/supabase'
 import type { Session } from '@supabase/supabase-js'
+import type { TradeLog, JournalEntry } from './types'
 import './index.css'
 
 function Placeholder({ label }: { label: string }) {
@@ -81,6 +82,20 @@ function App() {
     setPage('diary')
   }
 
+  const quickAddTrade = (trade: TradeLog, date: string) => {
+    const existing = journalEntries.find(e => e.date === date)
+    const entry: JournalEntry = existing
+      ? { ...existing, trades: [...existing.trades, trade] }
+      : {
+          id: Math.random().toString(36).slice(2) + Date.now().toString(36),
+          date, premktImgKey: undefined, premktAnalysis: '',
+          redFolderNews: false, redFolderNewsText: '',
+          trades: [trade], emotion: undefined,
+          postMarketNotes: '', rulesFollowed: [], updatedAt: '',
+        }
+    upsertJournalEntry(entry)
+  }
+
   const diaryDates = Object.keys(diaryEntries).filter(k => diaryEntries[k]?.trim())
 
   // Still checking session
@@ -134,9 +149,11 @@ function App() {
               journalEntries={journalEntries}
               monthlyGoals={monthlyGoals}
               tradingRules={tradingRules}
+              tradingAccounts={tradingAccounts}
               onSetGoal={setMonthlyGoal}
               onNavigateToJournal={navigateToJournal}
               onNavigateToDiary={navigateToDiary}
+              onQuickAddTrade={quickAddTrade}
               diaryDates={diaryDates}
             />
           </div>

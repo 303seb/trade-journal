@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check,
+  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check, Zap,
 } from 'lucide-react'
 import type { JournalEntry, TradeLog, TradeResult, TradingRule, TradingAccount } from '../types'
 import { formatCurrency } from '../utils/stats'
 import { useMobile } from '../hooks/useMobile'
+import { QuickAddModal } from '../components/QuickAddModal'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -1793,6 +1794,7 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
   const [filterPnl, setFilterPnl] = useState('All')
 
   const [showNewModal, setShowNewModal] = useState(false)
+  const [showQuickModal, setShowQuickModal] = useState(false)
   const [modalInitialDate, setModalInitialDate] = useState(todayStr())
 
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
@@ -1911,6 +1913,15 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
         />
       )}
 
+      {showQuickModal && (
+        <QuickAddModal
+          initialDate={modalInitialDate}
+          onSave={handleModalSave}
+          onClose={() => setShowQuickModal(false)}
+          tradingAccounts={tradingAccounts}
+        />
+      )}
+
       {/* Filter bar */}
       <div style={{ flexShrink: 0, padding: isMobile ? '10px 12px' : '12px 36px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-panel)', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {!isMobile && <span style={{ fontSize: 15, color: 'var(--text-muted)', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>}
@@ -1920,6 +1931,10 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
             style={{ ...inputBase, paddingLeft: 30, fontSize: 15, padding: '7px 12px 7px 30px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border-mid)' }}
             onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
         </div>
+        <button onClick={() => { setModalInitialDate(todayStr()); setShowQuickModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}
+        ><Zap size={13} /> Quick Add</button>
         <button onClick={() => openNew()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'var(--btn-bg)', color: 'var(--btn-text)', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--btn-hover)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}

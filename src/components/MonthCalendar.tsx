@@ -57,6 +57,22 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
   const weeks: (number | null)[][] = []
   for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
 
+  // A week is worth showing only if it contains a current-month weekday (a day
+  // the market could be open). This drops rows like a lone Sat 1st. Then keep
+  // just the most recent 5 weeks.
+  const weekHasTradingDay = (wi: number) => {
+    for (let di = 0; di < 7; di++) {
+      const dt = new Date(year, month, 1 + (wi * 7 + di - firstDay))
+      const dow = dt.getDay()
+      if (dt.getMonth() === month && dt.getFullYear() === year && dow >= 1 && dow <= 5) return true
+    }
+    return false
+  }
+  const visibleWeeks = weeks
+    .map((week, wi) => ({ week, wi }))
+    .filter(w => weekHasTradingDay(w.wi))
+    .slice(-5)
+
   const pad = (n: number) => String(n).padStart(2, '0')
 
   const navBtnStyle: React.CSSProperties = {
@@ -166,7 +182,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
 
       {/* Calendar rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 4 }}>
-        {weeks.map((week, wi) => {
+        {visibleWeeks.map(({ week, wi }, visIdx) => {
           // Full Sun–Sat week including days that spill into the previous/next
           // month, so weekly totals carry over across month boundaries.
           const weekDateStrs = week.map((_, di) => {
@@ -324,7 +340,7 @@ export function MonthCalendar({ year, month, trades, journalEntries, diaryDates,
                 boxShadow: weekShadow,
               }}>
                 <span style={{ fontSize: isMobile ? 7 : 13, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1 }}>
-                  {isMobile ? `W${wi + 1}` : `WK ${wi + 1}`}
+                  {isMobile ? `W${visIdx + 1}` : `WK ${visIdx + 1}`}
                 </span>
                 {weekHasData ? (
                   <>

@@ -28,7 +28,7 @@ function Placeholder({ label }: { label: string }) {
 function App() {
   const isMobile = useMobile()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
-  const [page, setPage] = useState<Page>('dashboard')
+  const [page, setPage] = useState<Page>('home')
   const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768)
   const [journalDate, setJournalDate] = useState<string | undefined>()
   const [diaryInitialDate, setDiaryInitialDate] = useState<string | undefined>()
@@ -161,7 +161,7 @@ function App() {
         )}
 
       <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
-        {page === 'dashboard' && (
+        {(page === 'dashboard' || page === 'home') && (
           <div className="h-full overflow-y-auto overflow-x-hidden">
             <Dashboard
               journalEntries={journalEntries}
@@ -203,6 +203,10 @@ function App() {
           </div>
         )}
         {page === 'news' && <Placeholder label="News" />}
+        {page === 'notebook' && <Placeholder label="Notebook" />}
+        {page === 'strategies' && <Placeholder label="Strategies" />}
+        {page === 'progress' && <Placeholder label="Progress Tracker" />}
+        {page === 'resources' && <Placeholder label="Resources" />}
         {page === 'accounts' && (
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
             <Accounts

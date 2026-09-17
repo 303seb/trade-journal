@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings, DiaryTemplate } from '../types'
+import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings, DiaryTemplate, Note } from '../types'
 import { normalizeJournalEntries } from '../utils/stats'
 
 const DEFAULT_CONFLUENCES = [
@@ -46,6 +46,7 @@ export function useStore(userId: string) {
   const [tradingAccounts, setTradingAccounts] = useState<TradingAccount[]>([])
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntries>({})
   const [diaryTemplates, setDiaryTemplates] = useState<DiaryTemplate[]>([])
+  const [notebookNotes, setNotebookNotes] = useState<Note[]>([])
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
 
   // Load from Supabase on mount; migrate localStorage if first login
@@ -62,6 +63,8 @@ export function useStore(userId: string) {
         console.error('Failed to load user data:', error)
       }
 
+      const localNotes = readLocal<Note[]>(`tj_notebook_${userId}`, [])
+
       if (data) {
         if (data.journal_entries) setJournalEntries(normalizeJournalEntries(data.journal_entries))
         if (data.monthly_goals)   setMonthlyGoals(data.monthly_goals)
@@ -71,6 +74,8 @@ export function useStore(userId: string) {
         if (data.diary_entries)   setDiaryEntries(data.diary_entries)
         if (data.diary_templates) setDiaryTemplates(data.diary_templates)
         if (data.app_settings)    setAppSettings(data.app_settings)
+        // notebook_notes column is optional; fall back to per-user localStorage
+        setNotebookNotes(Array.isArray(data.notebook_notes) ? data.notebook_notes : localNotes)
       } else {
         // First login — migrate any existing localStorage data
         const localData = {
@@ -91,6 +96,7 @@ export function useStore(userId: string) {
         setDiaryEntries(localData.diary_entries)
         setDiaryTemplates(localData.diary_templates)
         setAppSettings(localData.app_settings)
+        setNotebookNotes(localNotes)
 
         await supabase.from('user_data').insert({ id: userId, ...localData })
       }
@@ -233,6 +239,32 @@ export function useStore(userId: string) {
     save({ app_settings: settings })
   }, [save])
 
+  // Notebook notes are persisted to per-user localStorage (always) and best-effort
+  // synced to a notebook_notes column if it exists in Supabase.
+  const saveNotes = useCallback((next: Note[]) => {
+    try { localStorage.setItem(`tj_notebook_${userId}`, JSON.stringify(next)) } catch { /* ignore */ }
+    void Promise.resolve(
+      supabase.from('user_data').upsert({ id: userId, notebook_notes: next, updated_at: new Date().toISOString() })
+    ).catch(() => { /* column may not exist yet — localStorage still holds it */ })
+  }, [userId])
+
+  const upsertNote = useCallback((note: Note) => {
+    setNotebookNotes(prev => {
+      const exists = prev.some(n => n.id === note.id)
+      const next = exists ? prev.map(n => n.id === note.id ? note : n) : [note, ...prev]
+      saveNotes(next)
+      return next
+    })
+  }, [saveNotes])
+
+  const deleteNote = useCallback((id: string) => {
+    setNotebookNotes(prev => {
+      const next = prev.filter(n => n.id !== id)
+      saveNotes(next)
+      return next
+    })
+  }, [saveNotes])
+
   return {
     loading,
     journalEntries,
@@ -256,6 +288,9 @@ export function useStore(userId: string) {
     diaryTemplates,
     saveDiaryTemplate,
     deleteDiaryTemplate,
+    notebookNotes,
+    upsertNote,
+    deleteNote,
     appSettings,
     updateAppSettings,
   }

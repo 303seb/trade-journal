@@ -7,6 +7,7 @@ import { Journal } from './pages/Journal'
 import { Analytics } from './pages/Analytics'
 import { Accounts } from './pages/Accounts'
 import { DayView } from './pages/DayView'
+import { Notebook } from './pages/Notebook'
 import { Settings } from './pages/Settings'
 import { AuthScreen } from './components/AuthScreen'
 import { BottomNav } from './components/BottomNav'
@@ -60,6 +61,9 @@ function App() {
     deleteTradingAccount,
     diaryEntries,
     saveDiaryEntry,
+    notebookNotes,
+    upsertNote,
+    deleteNote,
     appSettings,
     updateAppSettings,
   } = useStore(session?.user.id ?? '')
@@ -197,7 +201,16 @@ function App() {
           </div>
         )}
         {page === 'news' && <Placeholder label="News" />}
-        {page === 'notebook' && <Placeholder label="Notebook" />}
+        {page === 'notebook' && (
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
+            <Notebook
+              notes={notebookNotes}
+              journalEntries={journalEntries}
+              onUpsertNote={upsertNote}
+              onDeleteNote={deleteNote}
+            />
+          </div>
+        )}
         {page === 'strategies' && <Placeholder label="Strategies" />}
         {page === 'progress' && <Placeholder label="Progress Tracker" />}
         {page === 'resources' && <Placeholder label="Resources" />}

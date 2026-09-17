@@ -149,6 +149,19 @@ export interface AppSettings {
   ruleBreakAlerts: boolean
 }
 
+export type NoteCategory = 'daily' | 'trade' | 'session' | 'general'
+
+export interface Note {
+  id: string
+  title: string
+  content: string          // rich text as HTML
+  category: NoteCategory
+  date?: string            // YYYY-MM-DD — links a daily note to that day's trades
+  favorite: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export interface DashTrade {
   id: string
   date: string

@@ -30,7 +30,14 @@ function Placeholder({ label }: { label: string }) {
 function App() {
   const isMobile = useMobile()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
-  const [page, setPage] = useState<Page>('home')
+  const [page, setPage] = useState<Page>(() => {
+    try { return (localStorage.getItem('tj_page') as Page) || 'home' } catch { return 'home' }
+  })
+
+  // Remember the current section so a reload returns here instead of Home
+  useEffect(() => {
+    try { localStorage.setItem('tj_page', page) } catch { /* ignore */ }
+  }, [page])
   const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768)
   const [journalDate, setJournalDate] = useState<string | undefined>()
 

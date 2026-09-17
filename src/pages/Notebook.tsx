@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } fr
 import {
   Search, ChevronLeft, ChevronRight, Plus, MoreHorizontal,
   Share2, Star, FileText, BarChart3, CalendarDays, Layers, Trash2, Copy,
-  Bold, Italic, Underline, Strikethrough, List, CheckSquare, Heading1, Heading2, Eraser,
+  Bold, Italic, Underline, Strikethrough, List, CheckSquare, Heading1, Heading2, Eraser, ImagePlus,
 } from 'lucide-react'
 import type { Note, NoteCategory, JournalEntry } from '../types'
 import { genId } from '../store/useStore'
@@ -78,6 +78,7 @@ function RichEditor({ noteId, initialHtml, onChange }: {
   onChange: (html: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
   const timer = useRef<number | undefined>(undefined)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -111,6 +112,32 @@ function RichEditor({ noteId, initialHtml, onChange }: {
     document.execCommand('insertHTML', false,
       '<ul class="nb-check"><li data-checked="false">&#8203;</li></ul>')
     schedule()
+  }
+
+  const insertImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const src = reader.result as string
+      ref.current?.focus()
+      document.execCommand('insertHTML', false, `<img src="${src}" alt="" /><p><br/></p>`)
+      flush()
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    files.forEach(insertImageFile)
+    e.target.value = ''
+  }
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    const img = Array.from(e.clipboardData.items).find(it => it.type.startsWith('image/'))
+    if (img) {
+      const file = img.getAsFile()
+      if (file) { e.preventDefault(); insertImageFile(file) }
+    }
   }
 
   // Toggle a checklist item when its checkbox gutter is clicked
@@ -151,6 +178,8 @@ function RichEditor({ noteId, initialHtml, onChange }: {
         <div style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 2px' }} />
         {tBtn('Bullet list', List, () => exec('insertUnorderedList'))}
         {tBtn('Checklist', CheckSquare, insertChecklist)}
+        {tBtn('Insert image', ImagePlus, () => fileRef.current?.click())}
+        <input ref={fileRef} type="file" accept="image/*" multiple onChange={onPickImage} style={{ display: 'none' }} />
         <div style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 2px' }} />
         {/* Color */}
         <div style={{ position: 'relative' }}>
@@ -181,6 +210,7 @@ function RichEditor({ noteId, initialHtml, onChange }: {
         onInput={schedule}
         onBlur={flush}
         onClick={onClick}
+        onPaste={onPaste}
         data-placeholder="Start writing your notes…"
         style={{
           flex: 1, minHeight: 0, overflowY: 'auto', outline: 'none',
@@ -539,6 +569,7 @@ export function Notebook({ notes, journalEntries, onUpsertNote, onDeleteNote }: 
         .nb-editor h3 { font-size: 19px; font-weight: 700; color: var(--text); margin: 12px 0 4px; }
         .nb-editor ul, .nb-editor ol { padding-left: 24px; margin: 4px 0; }
         .nb-editor a { color: #6ea8fe; }
+        .nb-editor img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; display: block; border: 1px solid var(--border-mid); }
         .nb-editor ul.nb-check { list-style: none; padding-left: 0; margin: 6px 0; }
         .nb-editor ul.nb-check > li { position: relative; padding-left: 32px; margin: 4px 0; min-height: 24px; }
         .nb-editor ul.nb-check > li:before {

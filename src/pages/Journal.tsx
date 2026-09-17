@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check, Zap,
+  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check, Zap, Upload,
 } from 'lucide-react'
 import type { JournalEntry, TradeLog, TradeResult, TradingRule, TradingAccount } from '../types'
 import { formatCurrency } from '../utils/stats'
 import { useMobile } from '../hooks/useMobile'
 import { QuickAddModal } from '../components/QuickAddModal'
+import { ImportTradesModal } from '../components/ImportTradesModal'
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
@@ -1795,6 +1796,7 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showQuickModal, setShowQuickModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [modalInitialDate, setModalInitialDate] = useState(todayStr())
 
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
@@ -1853,6 +1855,20 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
     entry.trades = [...entry.trades, newTrade]
     entry.updatedAt = new Date().toISOString()
     onSave(entry)
+  }
+
+  function handleImport(rows: { trade: TradeLog; date: string }[]) {
+    const byDate = new Map<string, TradeLog[]>()
+    for (const { trade, date } of rows) {
+      byDate.set(date, [...(byDate.get(date) || []), trade])
+    }
+    for (const [date, newTrades] of byDate) {
+      const existingEntry = entries.find(e => e.date === date)
+      const entry = safeEntry(existingEntry, date)
+      entry.trades = [...entry.trades, ...newTrades]
+      entry.updatedAt = new Date().toISOString()
+      onSave(entry)
+    }
   }
 
   function handleSave() {
@@ -1922,6 +1938,14 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
         />
       )}
 
+      {showImportModal && (
+        <ImportTradesModal
+          tradingAccounts={tradingAccounts}
+          onImport={handleImport}
+          onClose={() => setShowImportModal(false)}
+        />
+      )}
+
       {/* Filter bar */}
       <div style={{ flexShrink: 0, padding: isMobile ? '10px 12px' : '12px 36px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-panel)', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
         {!isMobile && <span style={{ fontSize: 15, color: 'var(--text-muted)', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>}
@@ -1931,6 +1955,10 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
             style={{ ...inputBase, paddingLeft: 30, fontSize: 15, padding: '7px 12px 7px 30px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border-mid)' }}
             onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
         </div>
+        <button onClick={() => setShowImportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}
+        ><Upload size={13} /> Import</button>
         <button onClick={() => { setModalInitialDate(todayStr()); setShowQuickModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
           onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}

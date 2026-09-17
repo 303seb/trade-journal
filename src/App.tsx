@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Sidebar } from './components/Sidebar'
+import { TopBar } from './components/TopBar'
 import type { Page } from './components/Sidebar'
 import { Dashboard } from './pages/Dashboard'
 import { Journal } from './pages/Journal'
@@ -28,7 +29,7 @@ function App() {
   const isMobile = useMobile()
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [page, setPage] = useState<Page>('dashboard')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768)
   const [journalDate, setJournalDate] = useState<string | undefined>()
   const [diaryInitialDate, setDiaryInitialDate] = useState<string | undefined>()
 
@@ -128,20 +129,37 @@ function App() {
     setPage(p)
     if (p !== 'trades') setJournalDate(undefined)
     if (p === 'diary') setDiaryInitialDate(undefined)
+    if (isMobile) setMenuOpen(false)
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--app-ambient), var(--bg)' }}>
-      {!isMobile && (
-        <Sidebar
-          page={page}
-          onNavigate={navigate}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(v => !v)}
-          onLogout={handleLogout}
-          userEmail={session.user.email}
-        />
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--app-ambient), var(--bg)' }}>
+      <TopBar
+        onToggleMenu={() => setMenuOpen(v => !v)}
+        darkMode={appSettings.darkMode}
+        onToggleTheme={() => updateAppSettings({ ...appSettings, darkMode: !appSettings.darkMode })}
+        onNavigate={navigate}
+        onLogout={handleLogout}
+        userEmail={session.user.email}
+        journalEntries={journalEntries}
+      />
+
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        {/* Desktop: inline sidebar */}
+        {!isMobile && menuOpen && (
+          <Sidebar page={page} onNavigate={navigate} />
+        )}
+
+        {/* Mobile: slide-in drawer */}
+        {isMobile && menuOpen && (
+          <>
+            <div onClick={() => setMenuOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 30 }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, zIndex: 31, boxShadow: '4px 0 24px rgba(0,0,0,0.5)' }}>
+              <Sidebar page={page} onNavigate={navigate} />
+            </div>
+          </>
+        )}
+
       <main style={{ flex: 1, minWidth: 0, overflow: 'hidden', overflowX: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: isMobile ? 64 : 0 }}>
         {page === 'dashboard' && (
           <div className="h-full overflow-y-auto overflow-x-hidden">
@@ -220,6 +238,7 @@ function App() {
           </div>
         )}
       </main>
+      </div>
       {isMobile && <BottomNav page={page} onNavigate={navigate} />}
     </div>
   )

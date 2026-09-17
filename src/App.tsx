@@ -6,7 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 import { Journal } from './pages/Journal'
 import { Analytics } from './pages/Analytics'
 import { Accounts } from './pages/Accounts'
-import { DailyJournal } from './pages/DailyJournal'
+import { DayView } from './pages/DayView'
 import { Settings } from './pages/Settings'
 import { AuthScreen } from './components/AuthScreen'
 import { BottomNav } from './components/BottomNav'
@@ -31,7 +31,6 @@ function App() {
   const [page, setPage] = useState<Page>('home')
   const [menuOpen, setMenuOpen] = useState(() => window.innerWidth >= 768)
   const [journalDate, setJournalDate] = useState<string | undefined>()
-  const [diaryInitialDate, setDiaryInitialDate] = useState<string | undefined>()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
@@ -61,9 +60,6 @@ function App() {
     deleteTradingAccount,
     diaryEntries,
     saveDiaryEntry,
-    diaryTemplates,
-    saveDiaryTemplate,
-    deleteDiaryTemplate,
     appSettings,
     updateAppSettings,
   } = useStore(session?.user.id ?? '')
@@ -78,8 +74,7 @@ function App() {
     setPage('trades')
   }
 
-  const navigateToDiary = (date: string) => {
-    setDiaryInitialDate(date)
+  const navigateToDiary = (_date: string) => {
     setPage('diary')
   }
 
@@ -128,7 +123,6 @@ function App() {
   const navigate = (p: Page) => {
     setPage(p)
     if (p !== 'trades') setJournalDate(undefined)
-    if (p === 'diary') setDiaryInitialDate(undefined)
     if (isMobile) setMenuOpen(false)
   }
 
@@ -220,13 +214,12 @@ function App() {
         )}
         {page === 'diary' && (
           <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-            <DailyJournal
+            <DayView
+              journalEntries={journalEntries}
+              tradingAccounts={tradingAccounts}
               diaryEntries={diaryEntries}
-              onSave={saveDiaryEntry}
-              initialDate={diaryInitialDate}
-              templates={diaryTemplates}
-              onSaveTemplate={saveDiaryTemplate}
-              onDeleteTemplate={deleteDiaryTemplate}
+              onSaveDiary={saveDiaryEntry}
+              onNavigateToJournal={navigateToJournal}
             />
           </div>
         )}

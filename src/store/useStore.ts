@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings, DiaryTemplate, Note } from '../types'
+import type { JournalEntry, MonthlyGoal, TradingRule, TradingAccount, DiaryEntries, AppSettings, DiaryTemplate, Note, Strategy } from '../types'
 import { normalizeJournalEntries } from '../utils/stats'
 
 const DEFAULT_CONFLUENCES = [
@@ -47,6 +47,7 @@ export function useStore(userId: string) {
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntries>({})
   const [diaryTemplates, setDiaryTemplates] = useState<DiaryTemplate[]>([])
   const [notebookNotes, setNotebookNotes] = useState<Note[]>([])
+  const [strategies, setStrategies] = useState<Strategy[]>([])
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
 
   // Load from Supabase on mount; migrate localStorage if first login
@@ -64,6 +65,7 @@ export function useStore(userId: string) {
       }
 
       const localNotes = readLocal<Note[]>(`tj_notebook_${userId}`, [])
+      const localStrategies = readLocal<Strategy[]>(`tj_strategies_${userId}`, [])
 
       if (data) {
         if (data.journal_entries) setJournalEntries(normalizeJournalEntries(data.journal_entries))
@@ -74,8 +76,9 @@ export function useStore(userId: string) {
         if (data.diary_entries)   setDiaryEntries(data.diary_entries)
         if (data.diary_templates) setDiaryTemplates(data.diary_templates)
         if (data.app_settings)    setAppSettings(data.app_settings)
-        // notebook_notes column is optional; fall back to per-user localStorage
+        // notebook_notes / strategies columns are optional; fall back to per-user localStorage
         setNotebookNotes(Array.isArray(data.notebook_notes) ? data.notebook_notes : localNotes)
+        setStrategies(Array.isArray(data.strategies) ? data.strategies : localStrategies)
       } else {
         // First login — migrate any existing localStorage data
         const localData = {
@@ -97,6 +100,7 @@ export function useStore(userId: string) {
         setDiaryTemplates(localData.diary_templates)
         setAppSettings(localData.app_settings)
         setNotebookNotes(localNotes)
+        setStrategies(localStrategies)
 
         await supabase.from('user_data').insert({ id: userId, ...localData })
       }
@@ -265,6 +269,31 @@ export function useStore(userId: string) {
     })
   }, [saveNotes])
 
+  // Strategies — same localStorage-first + best-effort Supabase sync pattern.
+  const saveStrategies = useCallback((next: Strategy[]) => {
+    try { localStorage.setItem(`tj_strategies_${userId}`, JSON.stringify(next)) } catch { /* ignore */ }
+    void Promise.resolve(
+      supabase.from('user_data').upsert({ id: userId, strategies: next, updated_at: new Date().toISOString() })
+    ).catch(() => { /* column may not exist yet — localStorage still holds it */ })
+  }, [userId])
+
+  const upsertStrategy = useCallback((strategy: Strategy) => {
+    setStrategies(prev => {
+      const exists = prev.some(s => s.id === strategy.id)
+      const next = exists ? prev.map(s => s.id === strategy.id ? strategy : s) : [...prev, strategy]
+      saveStrategies(next)
+      return next
+    })
+  }, [saveStrategies])
+
+  const deleteStrategy = useCallback((id: string) => {
+    setStrategies(prev => {
+      const next = prev.filter(s => s.id !== id)
+      saveStrategies(next)
+      return next
+    })
+  }, [saveStrategies])
+
   return {
     loading,
     journalEntries,
@@ -291,6 +320,9 @@ export function useStore(userId: string) {
     notebookNotes,
     upsertNote,
     deleteNote,
+    strategies,
+    upsertStrategy,
+    deleteStrategy,
     appSettings,
     updateAppSettings,
   }

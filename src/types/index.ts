@@ -149,6 +149,17 @@ export interface AppSettings {
   ruleBreakAlerts: boolean
 }
 
+export interface Strategy {
+  id: string
+  name: string
+  color: string
+  description?: string
+  matchTerms: string[]     // entry-model / playbook tags on a trade that map to this strategy
+  missedTrades?: number
+  archived: boolean
+  createdAt: string
+}
+
 export type NoteCategory = 'daily' | 'trade' | 'session' | 'general'
 
 export interface Note {

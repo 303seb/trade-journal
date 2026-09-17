@@ -5,9 +5,12 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
   XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts'
-import { NotebookPen, Zap, Info, ChevronDown } from 'lucide-react'
+import { NotebookPen, Zap, Info } from 'lucide-react'
 import { MonthCalendar } from '../components/MonthCalendar'
 import { QuickAddModal } from '../components/QuickAddModal'
+import { ControlBar, DEFAULT_CONTROLS } from '../components/ControlBar'
+import type { Controls } from '../components/ControlBar'
+import { tradeUnitValue, fmtUnit, fmtUnitAxis } from '../utils/units'
 import { getDashTrades, formatCurrency } from '../utils/stats'
 import type { JournalEntry, TradingRule, TradeLog, TradingAccount } from '../types'
 
@@ -91,39 +94,42 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
   const [month, setMonth] = useState(now.getMonth())
   const [showQuick, setShowQuick] = useState(false)
   const [tradesTab, setTradesTab] = useState<'recent' | 'open'>('recent')
-  const [account, setAccount] = useState<string>('all')
-  const [range, setRange] = useState<'all' | 'ytd' | '30d' | 'month'>('all')
-  const [acctOpen, setAcctOpen] = useState(false)
-  const [rangeOpen, setRangeOpen] = useState(false)
+  const [controls, setControls] = useState<Controls>(DEFAULT_CONTROLS)
+  const unit = controls.unit
 
   const accountNames = tradingAccounts.map(a => a.name)
+  const symbols = useMemo(() => Array.from(new Set(journalEntries.flatMap(e => e.trades.map(t => t.symbol).filter(Boolean)))).sort(), [journalEntries])
 
   // account-filtered entries (used by the calendar)
   const acctEntries = useMemo(() => {
-    if (account === 'all') return journalEntries
-    return journalEntries.map(e => ({ ...e, trades: e.trades.filter(t => (t.accounts || []).includes(account) || (t.accounts || []).length === 0) }))
-  }, [journalEntries, account])
+    if (controls.account === 'all') return journalEntries
+    return journalEntries.map(e => ({ ...e, trades: e.trades.filter(t => (t.accounts || []).includes(controls.account) || (t.accounts || []).length === 0) }))
+  }, [journalEntries, controls.account])
 
-  // flat, account + range filtered trades
+  // flat, account + range + filters
   const trades = useMemo(() => {
     let flat = acctEntries.flatMap(e => e.trades.map(t => ({ ...t, date: e.date })))
-    if (range === 'ytd') flat = flat.filter(t => t.date.startsWith(String(now.getFullYear())))
-    else if (range === 'month') flat = flat.filter(t => t.date.startsWith(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`))
-    else if (range === '30d') {
+    if (controls.range === 'ytd') flat = flat.filter(t => t.date.startsWith(String(now.getFullYear())))
+    else if (controls.range === 'month') flat = flat.filter(t => t.date.startsWith(`${now.getFullYear()}-${pad(now.getMonth() + 1)}`))
+    else if (controls.range === '30d') {
       const cut = new Date(); cut.setDate(cut.getDate() - 30); const c = iso(cut)
       flat = flat.filter(t => t.date >= c)
     }
+    if (controls.result !== 'all') flat = flat.filter(t => t.result === controls.result)
+    if (controls.symbol !== 'all') flat = flat.filter(t => t.symbol === controls.symbol)
     return flat
-  }, [acctEntries, range]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [acctEntries, controls.range, controls.result, controls.symbol]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── core metrics ──
+  // ── core metrics ── (magnitudes in the selected unit; win/loss by $ outcome)
   const m = useMemo(() => {
-    const netPnl = trades.reduce((s, t) => s + netOf(t), 0)
+    const uv = (t: typeof trades[number]) => tradeUnitValue(t, unit)
+    const netPnl = trades.reduce((s, t) => s + uv(t), 0)
     const wins = trades.filter(t => netOf(t) > 0)
     const losses = trades.filter(t => netOf(t) < 0)
     const bes = trades.filter(t => netOf(t) === 0 && t.pnl !== '')
     const decided = wins.length + losses.length
     const tradeWin = decided > 0 ? (wins.length / decided) * 100 : 0
+    // profit factor + avg win/loss stay in $ (ratios / dollar figures)
     const grossProfit = wins.reduce((s, t) => s + netOf(t), 0)
     const grossLoss = Math.abs(losses.reduce((s, t) => s + netOf(t), 0))
     const profitFactor = grossLoss === 0 ? (grossProfit > 0 ? Infinity : 0) : grossProfit / grossLoss
@@ -131,33 +137,41 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
     const avgLoss = losses.length ? grossLoss / losses.length : 0
     const wlRatio = avgLoss === 0 ? (avgWin > 0 ? Infinity : 0) : avgWin / avgLoss
 
-    // per-day
-    const dayMap = new Map<string, number>()
-    trades.forEach(t => dayMap.set(t.date, (dayMap.get(t.date) ?? 0) + netOf(t)))
-    const days = [...dayMap.entries()]
+    // per-day: $ map for win/loss classification, unit map for bars
+    const dayDollar = new Map<string, number>()
+    const dayUnit = new Map<string, number>()
+    trades.forEach(t => {
+      dayDollar.set(t.date, (dayDollar.get(t.date) ?? 0) + netOf(t))
+      dayUnit.set(t.date, (dayUnit.get(t.date) ?? 0) + uv(t))
+    })
+    const days = [...dayDollar.entries()]
     const winDays = days.filter(([, v]) => v > 0).length
     const lossDays = days.filter(([, v]) => v < 0).length
     const beDays = days.filter(([, v]) => v === 0).length
     const dayWin = (winDays + lossDays) > 0 ? (winDays / (winDays + lossDays)) * 100 : 0
 
-    // equity + drawdown
+    // equity + drawdown (unit for display, $ for the stable score)
     const sorted = [...trades].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
     let cum = 0, peak = 0, maxDD = 0
+    let cumD = 0, peakD = 0, maxDDd = 0
     const equity: { i: number; label: string; value: number; dd: number }[] = [{ i: 0, label: '', value: 0, dd: 0 }]
     sorted.forEach((t, i) => {
-      cum += netOf(t); peak = Math.max(peak, cum)
+      cum += uv(t); peak = Math.max(peak, cum)
       const dd = cum - peak; maxDD = Math.min(maxDD, dd)
+      cumD += netOf(t); peakD = Math.max(peakD, cumD); maxDDd = Math.min(maxDDd, cumD - peakD)
       equity.push({ i: i + 1, label: t.date.slice(5), value: +cum.toFixed(2), dd: +dd.toFixed(2) })
     })
     const maxDrawdown = Math.abs(maxDD)
-    const recovery = maxDrawdown > 0 ? netPnl / maxDrawdown : (netPnl > 0 ? 3 : 0)
+    const maxDrawdownD = Math.abs(maxDDd)
+    const netPnlD = grossProfit - grossLoss
+    const recovery = maxDrawdownD > 0 ? netPnlD / maxDrawdownD : (netPnlD > 0 ? 3 : 0)
     const consistency = days.length ? (winDays / days.length) * 100 : 0
 
-    // daily bars
-    const dailyBars = days.sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) => ({ label: d.slice(5), value: +v.toFixed(2) }))
+    // daily bars (unit)
+    const dailyBars = [...dayUnit.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([d, v]) => ({ label: d.slice(5), value: +v.toFixed(2) }))
 
-    return { netPnl, wins: wins.length, losses: losses.length, bes: bes.length, tradeWin, profitFactor, avgWin, avgLoss, wlRatio, winDays, lossDays, beDays, dayWin, equity, maxDrawdown, recovery, consistency, dailyBars, count: trades.length }
-  }, [trades])
+    return { netPnl, netPnlD, wins: wins.length, losses: losses.length, bes: bes.length, tradeWin, profitFactor, avgWin, avgLoss, wlRatio, winDays, lossDays, beDays, dayWin, equity, maxDrawdown, maxDrawdownD, recovery, consistency, dailyBars, count: trades.length }
+  }, [trades, unit])
 
   // ── performance score (original composite, 0–100) ──
   const score = useMemo(() => {
@@ -165,7 +179,7 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
     const pfScore = m.profitFactor === Infinity ? 100 : clamp((m.profitFactor / 3) * 100, 0, 100)
     const wlScore = m.wlRatio === Infinity ? 100 : clamp((m.wlRatio / 3) * 100, 0, 100)
     const recScore = clamp((m.recovery / 3) * 100, 0, 100)
-    const ddScore = m.maxDrawdown === 0 ? 100 : clamp(100 - (m.maxDrawdown / (m.maxDrawdown + Math.max(m.netPnl, 0) + 1)) * 100, 0, 100)
+    const ddScore = m.maxDrawdownD === 0 ? 100 : clamp(100 - (m.maxDrawdownD / (m.maxDrawdownD + Math.max(m.netPnlD, 0) + 1)) * 100, 0, 100)
     const consScore = clamp(m.consistency, 0, 100)
     const radar = [
       { metric: 'Win %', value: +winScore.toFixed(0) },
@@ -197,8 +211,8 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
   // ── trade time performance scatter ──
   const timePoints = useMemo(() => trades.filter(t => t.time).map(t => {
     const [h, min] = (t.time || '0:0').split(':').map(Number)
-    return { hour: (h || 0) + (min || 0) / 60, pnl: +netOf(t).toFixed(2) }
-  }), [trades])
+    return { hour: (h || 0) + (min || 0) / 60, pnl: +tradeUnitValue(t, unit).toFixed(2), sign: netOf(t) }
+  }), [trades, unit])
 
   // ── progress heatmap (last ~18 weeks) ──
   const heatmap = useMemo(() => {
@@ -246,26 +260,6 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
   const wlText = m.wlRatio === Infinity ? '∞' : m.wlRatio.toFixed(2)
   const scoreColor = score.composite >= 66 ? GREEN : score.composite >= 40 ? '#fbbf24' : RED
 
-  const Dropdown = ({ label, open, setOpen, options, value, onPick }: { label: string; open: boolean; setOpen: (v: boolean) => void; options: { v: string; l: string }[]; value: string; onPick: (v: string) => void }) => (
-    <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen(!open)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid var(--border-mid)', background: 'var(--bg-card)', color: 'var(--text-sub)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-        {options.find(o => o.v === value)?.l || label}<ChevronDown size={14} />
-      </button>
-      {open && (
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 39 }} />
-          <div style={{ position: 'absolute', top: 'calc(100% + 5px)', right: 0, zIndex: 40, background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', borderRadius: 10, boxShadow: 'var(--shadow-card)', padding: 5, minWidth: 150 }}>
-            {options.map(o => (
-              <button key={o.v} onClick={() => { onPick(o.v); setOpen(false) }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 7, border: 'none', background: value === o.v ? 'var(--bg-active)' : 'transparent', color: value === o.v ? 'var(--text)' : 'var(--text-sub)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                onMouseEnter={e => { if (value !== o.v) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                onMouseLeave={e => { if (value !== o.v) e.currentTarget.style.background = 'transparent' }}>{o.l}</button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-
   const gridCols = (n: number) => ({ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : `repeat(${n}, 1fr)`, gap: isMobile ? 12 : 16 })
 
   return (
@@ -282,10 +276,7 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
           <div style={{ fontSize: isMobile ? 24 : 30, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>Dashboard</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Dropdown label="Date range" open={rangeOpen} setOpen={setRangeOpen} value={range} onPick={v => setRange(v as typeof range)}
-            options={[{ v: 'all', l: 'All time' }, { v: 'ytd', l: 'This year' }, { v: 'month', l: 'This month' }, { v: '30d', l: 'Last 30 days' }]} />
-          <Dropdown label="All accounts" open={acctOpen} setOpen={setAcctOpen} value={account} onPick={setAccount}
-            options={[{ v: 'all', l: 'All accounts' }, ...accountNames.map(a => ({ v: a, l: a }))]} />
+          <ControlBar value={controls} onChange={setControls} accountNames={accountNames} symbols={symbols} />
           <button onClick={() => setShowQuick(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 9, border: 'none', background: 'var(--btn-bg)', color: 'var(--btn-text)', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             <Zap size={14} /> Quick Add
           </button>
@@ -294,7 +285,7 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
 
       {/* KPI row */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', gap: isMobile ? 10 : 14 }}>
-        <KpiCard label="Net P&L" value={(m.netPnl >= 0 ? '' : '-') + '$' + Math.abs(m.netPnl).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <KpiCard label="Net P&L" value={fmtUnit(m.netPnl, unit)}
           valueColor={m.netPnl > 0 ? GREEN : m.netPnl < 0 ? RED : 'var(--text)'}
           footer={<span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>{m.count} trade{m.count !== 1 ? 's' : ''}</span>} />
 
@@ -390,9 +381,9 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
                 </linearGradient>
               </defs>
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} minTickGap={40} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={v => `$${v}`} />
+              <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={(v: number) => fmtUnitAxis(v, unit)} />
               <ReferenceLine y={0} stroke="var(--border-mid)" />
-              <Tooltip {...tooltipStyle} formatter={((v: number) => [formatCurrency(v), 'Cumulative']) as any} />
+              <Tooltip {...tooltipStyle} formatter={((v: number) => [fmtUnit(v, unit), 'Cumulative']) as any} />
               <Area type="monotone" dataKey="value" stroke={m.netPnl >= 0 ? GREEN : RED} strokeWidth={2} fill="url(#cumFill)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -408,9 +399,9 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={m.dailyBars} margin={{ top: 6, right: 6, left: -8, bottom: 0 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} minTickGap={20} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={v => `$${v}`} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={(v: number) => fmtUnitAxis(v, unit)} />
                 <ReferenceLine y={0} stroke="var(--border-mid)" />
-                <Tooltip {...tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.03)' }} formatter={((v: number) => [formatCurrency(v), 'Net P&L']) as any} />
+                <Tooltip {...tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.03)' }} formatter={((v: number) => [fmtUnit(v, unit), 'Net P&L']) as any} />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]}>
                   {m.dailyBars.map((d, i) => <Cell key={i} fill={d.value >= 0 ? GREEN : RED} />)}
                 </Bar>
@@ -486,9 +477,9 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} minTickGap={40} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={v => `$${v}`} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={(v: number) => fmtUnitAxis(v, unit)} />
                 <ReferenceLine y={0} stroke="var(--border-mid)" />
-                <Tooltip {...tooltipStyle} formatter={((v: number) => [formatCurrency(v), 'Drawdown']) as any} />
+                <Tooltip {...tooltipStyle} formatter={((v: number) => [fmtUnit(v, unit), 'Drawdown']) as any} />
                 <Area type="monotone" dataKey="dd" stroke="#8b5cf6" strokeWidth={2} fill="url(#ddFill)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -501,10 +492,10 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
               <ResponsiveContainer width="100%" height={220}>
                 <ScatterChart margin={{ top: 6, right: 10, left: -8, bottom: 0 }}>
                   <XAxis type="number" dataKey="hour" domain={[0, 24]} ticks={[1, 4, 7, 10, 13, 16, 19, 22]} tick={{ fontSize: 11, fill: 'var(--text-dim)' }} tickFormatter={h => `${pad(h)}:00`} />
-                  <YAxis type="number" dataKey="pnl" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={v => `$${v}`} />
+                  <YAxis type="number" dataKey="pnl" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} width={48} tickFormatter={(v: number) => fmtUnitAxis(v, unit)} />
                   <ZAxis range={[45, 45]} />
                   <ReferenceLine y={0} stroke="var(--border-mid)" />
-                  <Tooltip {...tooltipStyle} cursor={{ strokeDasharray: '3 3' }} formatter={((v: number, n: string) => n === 'pnl' ? [formatCurrency(v), 'P&L'] : [v, n]) as any} />
+                  <Tooltip {...tooltipStyle} cursor={{ strokeDasharray: '3 3' }} formatter={((v: number, n: string) => n === 'pnl' ? [fmtUnit(v, unit), 'P&L'] : [v, n]) as any} />
                   <Scatter data={timePoints}>
                     {timePoints.map((p, i) => <Cell key={i} fill={p.pnl >= 0 ? GREEN : RED} />)}
                   </Scatter>

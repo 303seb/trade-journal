@@ -182,7 +182,7 @@ export function Strategies({ strategies, journalEntries, tradingAccounts, onUpse
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#8b7ff0', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tracking</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Tracking</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', marginTop: 3 }}>Strategies</h1>
           </div>
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
@@ -198,7 +198,7 @@ export function Strategies({ strategies, journalEntries, tradingAccounts, onUpse
             const active = tab === k
             return (
               <button key={k} onClick={() => setTab(k)}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14.5, fontWeight: active ? 700 : 500, color: active ? '#8b7ff0' : 'var(--text-muted)', borderBottom: active ? '2px solid #8b7ff0' : '2px solid transparent', marginBottom: -1 }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '11px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit', fontSize: 14.5, fontWeight: active ? 700 : 500, color: active ? 'var(--accent)' : 'var(--text-muted)', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -1 }}>
                 <Icon size={16} /> {label}
               </button>
             )
@@ -322,9 +322,9 @@ function KpiCard({ Icon, tint, label, leader, metric, value, valueColor }: {
 function IconToggle({ active, onClick, Icon }: { active: boolean; onClick: () => void; Icon: typeof LayoutGrid }) {
   return (
     <button onClick={onClick}
-      style={{ display: 'grid', placeItems: 'center', width: 38, height: 34, borderRadius: 9, border: '1px solid var(--border-mid)', background: active ? 'var(--bg-active)' : 'var(--bg-card)', color: active ? '#8b7ff0' : 'var(--text-muted)', cursor: 'pointer', position: 'relative' }}>
+      style={{ display: 'grid', placeItems: 'center', width: 38, height: 34, borderRadius: 9, border: '1px solid var(--border-mid)', background: active ? 'var(--bg-active)' : 'var(--bg-card)', color: active ? 'var(--accent)' : 'var(--text-muted)', cursor: 'pointer', position: 'relative' }}>
       <Icon size={17} />
-      {active && <div style={{ position: 'absolute', bottom: -1, left: 8, right: 8, height: 2, background: '#8b7ff0', borderRadius: 2 }} />}
+      {active && <div style={{ position: 'absolute', bottom: -1, left: 8, right: 8, height: 2, background: 'var(--accent)', borderRadius: 2 }} />}
     </button>
   )
 }

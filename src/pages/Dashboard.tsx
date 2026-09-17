@@ -297,8 +297,8 @@ export function Dashboard({ journalEntries, tradingRules, tradingAccounts, onNav
           right={<Donut segments={[{ value: Math.min(m.profitFactor === Infinity ? 3 : m.profitFactor, 3), color: GREEN }, { value: Math.max(3 - (m.profitFactor === Infinity ? 3 : m.profitFactor), 0), color: RED }]} />} />
 
         <KpiCard label="Day win %" value={`${m.dayWin.toFixed(0)}%`}
-          right={<Donut segments={[{ value: m.winDays, color: GREEN }, { value: m.beDays, color: '#3b82f6' }, { value: m.lossDays, color: RED }]} />}
-          footer={<div style={{ display: 'flex', gap: 8, fontSize: 12, fontWeight: 700 }}><span style={{ color: GREEN }}>{m.winDays}</span><span style={{ color: '#3b82f6' }}>{m.beDays}</span><span style={{ color: RED }}>{m.lossDays}</span></div>} />
+          right={<Donut segments={[{ value: m.winDays, color: GREEN }, { value: m.beDays, color: 'var(--accent)' }, { value: m.lossDays, color: RED }]} />}
+          footer={<div style={{ display: 'flex', gap: 8, fontSize: 12, fontWeight: 700 }}><span style={{ color: GREEN }}>{m.winDays}</span><span style={{ color: 'var(--accent)' }}>{m.beDays}</span><span style={{ color: RED }}>{m.lossDays}</span></div>} />
 
         <KpiCard label="Avg win/loss trade" value={wlText}
           footer={<div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%', marginTop: 2 }}>

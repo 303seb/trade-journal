@@ -2034,9 +2034,9 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
             <div>
               <span style={kLabel}>Trade win %</span>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: '6px 0' }}>{kpi.tradeWin.toFixed(2)}%</div>
-              <div style={{ display: 'flex', gap: 7, fontSize: 12, fontWeight: 700 }}><span style={{ color: '#22c55e' }}>{kpi.wins}</span><span style={{ color: '#3b82f6' }}>{kpi.bes}</span><span style={{ color: '#ef4444' }}>{kpi.losses}</span></div>
+              <div style={{ display: 'flex', gap: 7, fontSize: 12, fontWeight: 700 }}><span style={{ color: '#22c55e' }}>{kpi.wins}</span><span style={{ color: 'var(--accent)' }}>{kpi.bes}</span><span style={{ color: '#ef4444' }}>{kpi.losses}</span></div>
             </div>
-            <Donut segments={[{ value: kpi.wins, color: '#22c55e' }, { value: kpi.bes, color: '#3b82f6' }, { value: kpi.losses, color: '#ef4444' }]} />
+            <Donut segments={[{ value: kpi.wins, color: '#22c55e' }, { value: kpi.bes, color: 'var(--accent)' }, { value: kpi.losses, color: '#ef4444' }]} />
           </div>
 
           <div style={kCard}>

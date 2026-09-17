@@ -28,9 +28,14 @@ html, body, #root {
   --text-muted: #b0b0b0;
   --text-dim: #707070;
   --text-label: #ffffff;
-  --btn-bg: #f0f0f0;
-  --btn-text: #111111;
-  --btn-hover: #ffffff;
+  /* brand — The Market Element purple */
+  --brand: #6d3fd4;
+  --brand-hi: #7d51e0;
+  --accent: #8b6cf0;
+  --accent-soft: rgba(124,77,214,0.16);
+  --btn-bg: #6d3fd4;
+  --btn-text: #ffffff;
+  --btn-hover: #7d51e0;
   /* legacy aliases */
   --bg-app: #0e0e0e;
   --bg-sidebar: #0a0a0a;
@@ -54,7 +59,7 @@ html, body, #root {
   --glow-red: 0 0 22px rgba(239,68,68,0.22), inset 0 1px 0 rgba(255,255,255,0.05);
   --glow-green-soft: 0 4px 16px rgba(34,197,94,0.16), var(--shadow-inset-top);
   --glow-red-soft: 0 4px 16px rgba(239,68,68,0.16), var(--shadow-inset-top);
-  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(255,255,255,0.032), transparent 72%);
+  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(124,77,214,0.14), transparent 72%);
 }
 
 /* ── Light theme ── */
@@ -74,9 +79,14 @@ html, body, #root {
   --text-muted: #505058;
   --text-dim: #6e6e78;
   --text-label: #1a1a22;
-  --btn-bg: #111111;
-  --btn-text: #f0f0f0;
-  --btn-hover: #222222;
+  /* brand — The Market Element purple */
+  --brand: #6d3fd4;
+  --brand-hi: #5c30bb;
+  --accent: #6d3fd4;
+  --accent-soft: rgba(109,63,212,0.12);
+  --btn-bg: #6d3fd4;
+  --btn-text: #ffffff;
+  --btn-hover: #5c30bb;
   /* legacy aliases */
   --bg-app: #f0f0f1;
   --bg-sidebar: #f8f8f9;
@@ -100,7 +110,7 @@ html, body, #root {
   --glow-red: 0 0 22px rgba(185,28,28,0.28), inset 0 1px 0 rgba(255,255,255,0.6);
   --glow-green-soft: 0 4px 16px rgba(21,128,61,0.20), var(--shadow-inset-top);
   --glow-red-soft: 0 4px 16px rgba(185,28,28,0.18), var(--shadow-inset-top);
-  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(15,23,42,0.05), transparent 72%);
+  --app-ambient: radial-gradient(1100px 520px at 50% -8%, rgba(109,63,212,0.10), transparent 72%);
 }
 
 [data-theme="light"] body {
@@ -159,8 +169,8 @@ h1, h2, h3, h4 {
 
 /* ── Selection ── */
 ::selection {
-  background: rgba(34, 197, 94, 0.25);
-  color: #f2f2f2;
+  background: rgba(124, 77, 214, 0.32);
+  color: #ffffff;
 }
 
 /* ── Mobile responsive ── */

@@ -414,7 +414,7 @@ export function Notebook({ notes, journalEntries, onUpsertNote, onDeleteNote }: 
             })}
             {dailyNotes.length > 9 && (
               <button onClick={() => setShowAllDaily(s => !s)}
-                style={{ width: '100%', textAlign: 'center', padding: '7px', border: 'none', background: 'transparent', color: '#8b7ff0', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ width: '100%', textAlign: 'center', padding: '7px', border: 'none', background: 'transparent', color: 'var(--accent)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {showAllDaily ? 'Show less' : `Show all ${dailyNotes.length}`}
               </button>
             )}
@@ -568,7 +568,7 @@ export function Notebook({ notes, journalEntries, onUpsertNote, onDeleteNote }: 
         .nb-editor h2 { font-size: 24px; font-weight: 800; color: var(--text); margin: 14px 0 6px; letter-spacing: -0.02em; }
         .nb-editor h3 { font-size: 19px; font-weight: 700; color: var(--text); margin: 12px 0 4px; }
         .nb-editor ul, .nb-editor ol { padding-left: 24px; margin: 4px 0; }
-        .nb-editor a { color: #6ea8fe; }
+        .nb-editor a { color: var(--accent); }
         .nb-editor img { max-width: 100%; height: auto; border-radius: 10px; margin: 8px 0; display: block; border: 1px solid var(--border-mid); }
         .nb-editor ul.nb-check { list-style: none; padding-left: 0; margin: 6px 0; }
         .nb-editor ul.nb-check > li { position: relative; padding-left: 32px; margin: 4px 0; min-height: 24px; }
@@ -577,7 +577,7 @@ export function Notebook({ notes, journalEntries, onUpsertNote, onDeleteNote }: 
           border: 2px solid var(--border-strong); border-radius: 5px; cursor: pointer; box-sizing: border-box;
         }
         .nb-editor ul.nb-check > li[data-checked="true"]:before {
-          content: '✓'; color: #fff; background: #3b82f6; border-color: #3b82f6;
+          content: '✓'; color: #fff; background: var(--brand); border-color: var(--brand);
           font-size: 13px; font-weight: 800; text-align: center; line-height: 15px;
         }
         .nb-editor ul.nb-check > li[data-checked="true"] { color: var(--text-dim); text-decoration: line-through; }

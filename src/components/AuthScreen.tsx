@@ -197,14 +197,14 @@ export function AuthScreen() {
               disabled={loading}
               style={{
                 width: '100%', padding: '13px', borderRadius: 10, border: 'none',
-                background: loading ? '#2a2a2a' : '#f0f0f0',
-                color: loading ? '#707070' : '#111111',
+                background: loading ? '#2a2a2a' : '#6d3fd4',
+                color: loading ? '#707070' : '#ffffff',
                 fontSize: 16, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 marginTop: 4,
               }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#ffffff' }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#f0f0f0' }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = '#7d51e0' }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = '#6d3fd4' }}
             >
               {loading && <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />}
               {mode === 'signin' ? 'Sign In' : 'Create Account'}
@@ -218,7 +218,7 @@ export function AuthScreen() {
             </span>
             <button
               onClick={() => { setMode(m => m === 'signin' ? 'signup' : 'signin'); setError(null); setSuccess(null) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#e8e8e8', fontWeight: 600, padding: 0 }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: '#8b6cf0', fontWeight: 600, padding: 0 }}
             >
               {mode === 'signin' ? 'Sign Up' : 'Sign In'}
             </button>

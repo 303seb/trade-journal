@@ -736,7 +736,7 @@ export function Analytics({ journalEntries, tradingAccounts }: AnalyticsProps) {
                   <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} width={36} allowDecimals={false} />
                   <Tooltip {...TOOLTIP_STYLE} formatter={(v: unknown) => [Number(v), 'Trades']} />
-                  <Bar dataKey="count" radius={[3, 3, 0, 0]} fill="#60a5fa" fillOpacity={0.7} />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]} fill="var(--accent)" fillOpacity={0.7} />
                 </BarChart>
               </ResponsiveContainer>
             )}

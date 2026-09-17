@@ -1,10 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
-  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check, Zap, Upload,
+  Plus, Trash2, ImageIcon, X, Search, Save, ChevronDown, BookOpen, Check, Zap, Upload, Settings2,
 } from 'lucide-react'
+import { AreaChart, Area, ResponsiveContainer } from 'recharts'
 import type { JournalEntry, TradeLog, TradeResult, TradingRule, TradingAccount } from '../types'
 import { formatCurrency } from '../utils/stats'
+import { tradeUnitValue, fmtUnit } from '../utils/units'
 import { useMobile } from '../hooks/useMobile'
+import { ControlBar, DEFAULT_CONTROLS } from '../components/ControlBar'
+import type { Controls } from '../components/ControlBar'
 import { QuickAddModal } from '../components/QuickAddModal'
 import { ImportTradesModal } from '../components/ImportTradesModal'
 
@@ -113,11 +117,6 @@ function calcPartialsPnl(symbol: string, side: 'Long' | 'Short', entry: string, 
     total += (side === 'Long' ? price - e : e - price) * pv * qty
   }
   return total.toFixed(2)
-}
-function calcRR(tp: string, sl: string): string {
-  const t = parseFloat(tp), s = parseFloat(sl)
-  if (isNaN(t) || isNaN(s) || t === 0 || s === 0) return ''
-  return (t / s).toFixed(2)
 }
 
 // ── Auto-grade ────────────────────────────────────────────────────────────────
@@ -1679,35 +1678,68 @@ function InlineTradeForm({ trade, date, saved, onUpdate, onDateChange, onSave, o
   )
 }
 
+// ── KPI donut ─────────────────────────────────────────────────────────────────
+
+function Donut({ segments, size = 58, thickness = 8 }: { segments: { value: number; color: string }[]; size?: number; thickness?: number }) {
+  const r = (size - thickness) / 2
+  const c = 2 * Math.PI * r
+  const total = segments.reduce((s, x) => s + x.value, 0) || 1
+  let offset = 0
+  return (
+    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--bg-hover)" strokeWidth={thickness} />
+      {segments.map((seg, i) => {
+        const len = (seg.value / total) * c
+        const el = <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" stroke={seg.color} strokeWidth={thickness} strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} />
+        offset += len
+        return el
+      })}
+    </svg>
+  )
+}
+
+const kCard: React.CSSProperties = {
+  background: 'var(--card-sheen), var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14,
+  padding: '14px 16px', boxShadow: 'var(--shadow-card)', display: 'flex', flexDirection: 'column', gap: 8, minHeight: 108,
+}
+const kLabel: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }
+
 // ── Summary Row ───────────────────────────────────────────────────────────────
 
-function SummaryRow({ trade, date, expanded, onToggle, COL, isMobile }: {
+function SummaryRow({ trade, date, expanded, onToggle, COL, isMobile, unit, selected, onSelect }: {
   trade: TradeLog & { date: string }
   date: string
   expanded: boolean
   onToggle: () => void
   COL: string
   isMobile?: boolean
+  unit: Controls['unit']
+  selected: boolean
+  onSelect: () => void
 }) {
-  const grossPnl = parseFloat(trade.pnl) || 0
+  const gross = parseFloat(trade.pnl) || 0
   const fees = parseFloat(trade.fees || '0') || 0
-  const pnl = grossPnl - fees
-  const pnlColor = pnl > 0 ? '#22c55e' : pnl < 0 ? '#ef4444' : 'var(--text-muted)'
-  const rrVal = calcRR(trade.takeProfit, trade.stopLoss)
-  const rrNum = rrVal ? parseFloat(rrVal) : null
-  const rrColor = rrNum === null ? 'var(--text-dim)' : rrNum >= 1 ? '#22c55e' : '#ef4444'
-  const rc = RESULT_COLORS[trade.result] || 'var(--text-sub)'
-  const gc = trade.grade ? (GRADE_COLORS[trade.grade] || 'var(--text-sub)') : null
-  const dateLabel = `${date.slice(5).replace('-', '/')}${trade.time ? ' · ' + trade.time : ''}`
-  const sessionLabel = trade.sessions.length > 0 ? trade.sessions.join(', ') : '—'
-  const setupLabel = trade.setup || (trade.confluences[0] || '—')
+  const net = gross - fees
+  const netUnit = tradeUnitValue(trade, unit)
+  const pnlColor = net > 0 ? '#22c55e' : net < 0 ? '#ef4444' : 'var(--text-muted)'
+  const status = net > 0 ? 'WIN' : net < 0 ? 'LOSS' : 'BE'
+  const sc = net > 0 ? '#22c55e' : net < 0 ? '#ef4444' : '#8a8a94'
+  const entry = parseFloat(trade.entryPrice), contracts = parseFloat(trade.contracts)
+  const roi = (!isNaN(entry) && entry > 0 && !isNaN(contracts) && contracts > 0) ? (net / (entry * contracts)) * 100 : null
+  const hasR = parseFloat(trade.stopLoss) > 0
+  const rMult = hasR ? tradeUnitValue(trade, 'rr') : null
+  const dateFmt = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+  const numCell: React.CSSProperties = { fontSize: 14, textAlign: 'right', paddingRight: 6 }
+  const StatusBadge = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 800, width: 'fit-content', letterSpacing: '0.03em', background: `${sc}22`, border: `1px solid ${sc}55`, color: sc }}>{status}</span>
+  )
 
   return (
     <div
       onClick={onToggle}
       style={{
-        display: 'grid', gridTemplateColumns: COL,
-        padding: isMobile ? '10px 12px' : '10px 36px', alignItems: 'center',
+        display: 'grid', gridTemplateColumns: COL, gap: 6,
+        padding: isMobile ? '11px 12px' : '11px 26px', alignItems: 'center',
         cursor: 'pointer', transition: 'background 0.1s',
         borderLeft: `2px solid ${expanded ? 'var(--border-strong)' : 'transparent'}`,
         background: expanded ? 'var(--bg-active)' : 'transparent',
@@ -1715,57 +1747,33 @@ function SummaryRow({ trade, date, expanded, onToggle, COL, isMobile }: {
       onMouseEnter={e => { if (!expanded) e.currentTarget.style.background = 'var(--bg-hover)' }}
       onMouseLeave={e => { if (!expanded) e.currentTarget.style.background = 'transparent' }}
     >
+      <div style={{ display: 'flex', alignItems: 'center' }} onClick={e => { e.stopPropagation(); onSelect() }}>
+        <input type="checkbox" checked={selected} readOnly style={{ cursor: 'pointer', width: 15, height: 15 }} />
+      </div>
       {isMobile ? (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{dateLabel}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>{dateFmt}</span>
             <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: pnlColor }}>
-            {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
-          </span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            padding: '2px 6px', borderRadius: 999, fontSize: 11, fontWeight: 700, width: 'fit-content',
-            background: `${rc}18`, border: `1px solid ${rc}44`, color: rc,
-          }}>{trade.result}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: pnlColor, textAlign: 'right' }}>{trade.pnl ? fmtUnit(netUnit, unit) : '—'}</span>
+          {StatusBadge}
         </>
       ) : (
         <>
-          <span style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>{dateLabel}</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            padding: '3px 10px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
-            background: trade.side === 'Long' ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.1)',
-            border: `1px solid ${trade.side === 'Long' ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'}`,
-            color: trade.side === 'Long' ? '#22c55e' : '#ef4444',
-          }}>{trade.side}</span>
-          <span style={{ fontSize: 15, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 10 }}>{setupLabel}</span>
-          <span style={{ fontSize: 14, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sessionLabel}</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: pnlColor }}>
-            {trade.pnl ? (pnl >= 0 ? '+' : '') + formatCurrency(pnl) : '—'}
-          </span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: rrColor }}>
-            {rrVal ? `${rrNum! >= 0 ? '+' : ''}${rrVal}R` : '—'}
-          </span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            padding: '3px 8px', borderRadius: 999, fontSize: 13, fontWeight: 700, width: 'fit-content',
-            background: `${rc}18`, border: `1px solid ${rc}44`, color: rc,
-          }}>{trade.result}</span>
-          {gc ? (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              padding: '3px 8px', borderRadius: 6, fontSize: 14, fontWeight: 700, width: 'fit-content',
-              background: `${gc}18`, border: `1px solid ${gc}44`, color: gc,
-            }}>{trade.grade}</span>
-          ) : (
-            <span style={{ fontSize: 14, color: 'var(--text-dim)' }}>—</span>
-          )}
+          <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{dateFmt}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{trade.symbol || '—'}</span>
+          {StatusBadge}
+          <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{dateFmt}</span>
+          <span style={{ ...numCell, color: 'var(--text-sub)' }}>{trade.entryPrice ? formatCurrency(entry) : '—'}</span>
+          <span style={{ ...numCell, color: 'var(--text-sub)' }}>{trade.exitPrice ? formatCurrency(parseFloat(trade.exitPrice)) : '—'}</span>
+          <span style={{ ...numCell, fontWeight: 700, color: pnlColor }}>{trade.pnl ? fmtUnit(netUnit, unit) : '—'}</span>
+          <span style={{ ...numCell, fontWeight: 600, color: roi === null ? 'var(--text-dim)' : roi >= 0 ? '#22c55e' : '#ef4444' }}>{roi === null ? '—' : `${roi >= 0 ? '' : ''}${roi.toFixed(2)}%`}</span>
+          <span style={{ ...numCell, fontWeight: 700, color: rMult === null ? 'var(--text-dim)' : rMult >= 0 ? '#22c55e' : '#ef4444' }}>{rMult === null ? '—' : `${rMult >= 0 ? '+' : ''}${rMult.toFixed(2)}R`}</span>
+          <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{trade.duration || '—'}</span>
+          <span style={{ ...numCell, color: 'var(--text-muted)' }}>{fees ? formatCurrency(fees) : '$0'}</span>
         </>
       )}
-      <ChevronDown size={14} color="var(--text-muted)" style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.25s', justifySelf: 'end' }} />
     </div>
   )
 }
@@ -1789,10 +1797,12 @@ interface JournalProps {
 
 export function Journal({ entries, onSave, onDelete, initialDate, tradingAccounts }: JournalProps) {
   const isMobile = useMobile()
+  const now = new Date()
   const [search, setSearch] = useState('')
-  const [filterResult, setFilterResult] = useState('All')
-  const [filterSession, setFilterSession] = useState('All')
-  const [filterPnl, setFilterPnl] = useState('All')
+  const [controls, setControls] = useState<Controls>(DEFAULT_CONTROLS)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const unit = controls.unit
 
   const [showNewModal, setShowNewModal] = useState(false)
   const [showQuickModal, setShowQuickModal] = useState(false)
@@ -1815,18 +1825,45 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
       return dc !== 0 ? dc : (b.time || '').localeCompare(a.time || '')
     })
 
+  const accountNames = tradingAccounts.map(a => a.name)
+  const symbols = useMemo(() => Array.from(new Set(entries.flatMap(e => e.trades.map(t => t.symbol).filter(Boolean)))).sort(), [entries])
+
   const filtered = allTrades.filter(t => {
     if (search) {
       const q = search.toLowerCase()
       if (!t.symbol.toLowerCase().includes(q) && !(t.setup || '').toLowerCase().includes(q) && !t.result.toLowerCase().includes(q)) return false
     }
-    if (filterResult !== 'All' && t.result !== filterResult) return false
-    if (filterSession !== 'All' && !t.sessions.includes(filterSession)) return false
-    const pnl = parseFloat(t.pnl) || 0
-    if (filterPnl === 'Profitable' && pnl <= 0) return false
-    if (filterPnl === 'Unprofitable' && pnl >= 0) return false
+    if (controls.account !== 'all' && !((t.accounts || []).includes(controls.account) || (t.accounts || []).length === 0)) return false
+    if (controls.result !== 'all' && t.result !== controls.result) return false
+    if (controls.symbol !== 'all' && t.symbol !== controls.symbol) return false
+    if (controls.range === 'ytd' && !t.date.startsWith(String(now.getFullYear()))) return false
+    if (controls.range === 'month' && !t.date.startsWith(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)) return false
+    if (controls.range === '30d') { const c = new Date(); c.setDate(c.getDate() - 30); const cs = `${c.getFullYear()}-${String(c.getMonth() + 1).padStart(2, '0')}-${String(c.getDate()).padStart(2, '0')}`; if (t.date < cs) return false }
     return true
   })
+
+  // ── KPIs (from filtered) ──
+  const netOfT = (t: TradeLog) => (parseFloat(t.pnl) || 0) - (parseFloat(t.fees || '0') || 0)
+  const kpi = useMemo(() => {
+    const uv = (t: TradeLog) => tradeUnitValue(t, unit)
+    const totalNet = filtered.reduce((s, t) => s + uv(t), 0)
+    const wins = filtered.filter(t => netOfT(t) > 0)
+    const losses = filtered.filter(t => netOfT(t) < 0)
+    const bes = filtered.filter(t => netOfT(t) === 0 && t.pnl !== '').length
+    const decided = wins.length + losses.length
+    const tradeWin = decided > 0 ? (wins.length / decided) * 100 : 0
+    const gp = wins.reduce((s, t) => s + netOfT(t), 0)
+    const gl = Math.abs(losses.reduce((s, t) => s + netOfT(t), 0))
+    const profitFactor = gl === 0 ? (gp > 0 ? Infinity : 0) : gp / gl
+    const avgWin = wins.length ? gp / wins.length : 0
+    const avgLoss = losses.length ? gl / losses.length : 0
+    const wlRatio = avgLoss === 0 ? (avgWin > 0 ? Infinity : 0) : avgWin / avgLoss
+    // cumulative (unit) oldest→newest
+    const chron = [...filtered].sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+    let cum = 0
+    const cumSeries = [{ i: 0, v: 0 }, ...chron.map((t, i) => { cum += uv(t); return { i: i + 1, v: +cum.toFixed(2) } })]
+    return { totalNet, wins: wins.length, losses: losses.length, bes, tradeWin, profitFactor, avgWin, avgLoss, wlRatio, cumSeries, count: filtered.length }
+  }, [filtered, unit]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function openNew(date?: string) {
     setModalInitialDate(date || todayStr())
@@ -1901,21 +1938,33 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
     setExpandedKey(null); setBuffer(null)
   }
 
-  const filtersActive = search || filterResult !== 'All' || filterSession !== 'All' || filterPnl !== 'All'
-  const COL = isMobile ? '1fr 1fr 60px 28px' : 'repeat(9, 1fr) 28px'
+  const keyOf = (t: TradeLog & { date: string }) => `${t.date}::${t.id}`
+  const toggleSelect = (k: string) => setSelected(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const allSelected = filtered.length > 0 && filtered.every(t => selected.has(keyOf(t)))
+  const toggleSelectAll = () => setSelected(allSelected ? new Set() : new Set(filtered.map(keyOf)))
+
+  function bulkDelete() {
+    // group selected by date, remove from each entry
+    const byDate = new Map<string, Set<string>>()
+    filtered.forEach(t => { const k = keyOf(t); if (selected.has(k)) { const s = byDate.get(t.date) ?? new Set(); s.add(t.id); byDate.set(t.date, s) } })
+    byDate.forEach((ids, date) => {
+      const existing = entries.find(e => e.date === date)
+      if (!existing) return
+      const entry = safeEntry(existing, date)
+      entry.trades = entry.trades.filter(t => !ids.has(t.id))
+      entry.updatedAt = new Date().toISOString()
+      if (entry.trades.length === 0) onDelete(date)
+      else onSave(entry)
+    })
+    setSelected(new Set()); setBulkOpen(false)
+  }
+
+  const COL = isMobile ? '30px 1fr 1fr 70px' : '34px 0.85fr 0.7fr 0.6fr 0.85fr 0.8fr 0.8fr 0.85fr 0.7fr 0.6fr 0.8fr 0.7fr'
 
   const hStyle: React.CSSProperties = {
-    fontSize: 13, fontWeight: 700, color: 'var(--text-muted)',
-    textTransform: 'uppercase', letterSpacing: '0.09em', padding: '9px 0',
+    fontSize: 12, fontWeight: 700, color: 'var(--text-muted)',
+    textTransform: 'uppercase', letterSpacing: '0.06em', padding: '10px 0', whiteSpace: 'nowrap',
   }
-  const selectStyle = (active: boolean): React.CSSProperties => ({
-    background: active ? 'var(--bg-hover)' : 'var(--bg-input)',
-    border: `1px solid ${active ? 'var(--border-mid)' : 'var(--border)'}`,
-    borderRadius: 8, padding: '6px 26px 6px 10px',
-    fontSize: 14, color: active ? 'var(--text)' : 'var(--text-muted)',
-    cursor: 'pointer', outline: 'none', fontFamily: 'inherit',
-    appearance: 'none', WebkitAppearance: 'none',
-  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, height: '100%', minHeight: 0, overflow: 'hidden' }}>
@@ -1946,54 +1995,99 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
         />
       )}
 
-      {/* Filter bar */}
-      <div style={{ flexShrink: 0, padding: isMobile ? '10px 12px' : '12px 36px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-panel)', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-        {!isMobile && <span style={{ fontSize: 15, color: 'var(--text-muted)', marginRight: 4, whiteSpace: 'nowrap' }}>Log, scan and review every trade.</span>}
-        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      {/* Header + control bar + KPIs */}
+      <div style={{ flexShrink: 0, padding: isMobile ? '12px 12px 0' : '18px 26px 0', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Tracking</div>
+            <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>Trade View</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <ControlBar value={controls} onChange={setControls} accountNames={accountNames} symbols={symbols} />
+            <button onClick={() => setShowImportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}><Upload size={13} /> Import</button>
+            <button onClick={() => { setModalInitialDate(todayStr()); setShowQuickModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}><Zap size={13} /> Quick Add</button>
+            <button onClick={() => openNew()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'var(--btn-bg)', color: 'var(--btn-text)', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}><Plus size={13} /> New Trade</button>
+          </div>
+        </div>
+
+        {/* KPI row */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: isMobile ? 10 : 14 }}>
+          <div style={kCard}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}><span style={kLabel}>Net cumulative P&L</span><span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 700 }}>{kpi.count}</span></div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: kpi.totalNet > 0 ? '#22c55e' : kpi.totalNet < 0 ? '#ef4444' : 'var(--text)', letterSpacing: '-0.02em' }}>{fmtUnit(kpi.totalNet, unit)}</div>
+            <div style={{ flex: 1, minHeight: 30 }}>
+              <ResponsiveContainer width="100%" height={38}>
+                <AreaChart data={kpi.cumSeries} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                  <defs><linearGradient id="tvcum" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={kpi.totalNet >= 0 ? '#22c55e' : '#ef4444'} stopOpacity={0.4} /><stop offset="100%" stopColor={kpi.totalNet >= 0 ? '#22c55e' : '#ef4444'} stopOpacity={0.03} /></linearGradient></defs>
+                  <Area type="monotone" dataKey="v" stroke={kpi.totalNet >= 0 ? '#22c55e' : '#ef4444'} strokeWidth={1.6} fill="url(#tvcum)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div style={{ ...kCard, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div><span style={kLabel}>Profit factor</span><div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', marginTop: 6 }}>{kpi.profitFactor === Infinity ? '∞' : kpi.profitFactor.toFixed(2)}</div></div>
+            <Donut segments={[{ value: Math.min(kpi.profitFactor === Infinity ? 3 : kpi.profitFactor, 3), color: '#22c55e' }, { value: Math.max(3 - (kpi.profitFactor === Infinity ? 3 : kpi.profitFactor), 0), color: '#ef4444' }]} />
+          </div>
+
+          <div style={{ ...kCard, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <span style={kLabel}>Trade win %</span>
+              <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: '6px 0' }}>{kpi.tradeWin.toFixed(2)}%</div>
+              <div style={{ display: 'flex', gap: 7, fontSize: 12, fontWeight: 700 }}><span style={{ color: '#22c55e' }}>{kpi.wins}</span><span style={{ color: '#3b82f6' }}>{kpi.bes}</span><span style={{ color: '#ef4444' }}>{kpi.losses}</span></div>
+            </div>
+            <Donut segments={[{ value: kpi.wins, color: '#22c55e' }, { value: kpi.bes, color: '#3b82f6' }, { value: kpi.losses, color: '#ef4444' }]} />
+          </div>
+
+          <div style={kCard}>
+            <span style={kLabel}>Avg win/loss trade</span>
+            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)' }}>{kpi.wlRatio === Infinity ? '∞' : kpi.wlRatio.toFixed(2)}</div>
+            <div style={{ display: 'flex', height: 8, borderRadius: 5, overflow: 'hidden', background: 'var(--bg-hover)' }}>
+              <div style={{ width: `${(kpi.avgWin / (kpi.avgWin + kpi.avgLoss || 1)) * 100}%`, background: '#22c55e' }} />
+              <div style={{ flex: 1, background: '#ef4444' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700 }}><span style={{ color: '#22c55e' }}>${kpi.avgWin.toFixed(1)}</span><span style={{ color: '#ef4444' }}>-${kpi.avgLoss.toFixed(1)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8, padding: isMobile ? '10px 12px' : '14px 26px 12px' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0, maxWidth: 360 }}>
           <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search trades…"
-            style={{ ...inputBase, paddingLeft: 30, fontSize: 15, padding: '7px 12px 7px 30px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border-mid)' }}
+            style={{ ...inputBase, paddingLeft: 30, fontSize: 14, padding: '7px 12px 7px 30px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border-mid)' }}
             onFocus={e => (e.target.style.borderColor = 'var(--border-strong)')} onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')} />
         </div>
-        <button onClick={() => setShowImportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}
-        ><Upload size={13} /> Import</button>
-        <button onClick={() => { setModalInitialDate(todayStr()); setShowQuickModal(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'transparent', color: 'var(--text-sub)', borderRadius: 8, border: '1px solid var(--border-strong)', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text)'; e.currentTarget.style.background = 'var(--bg-hover)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.background = 'transparent' }}
-        ><Zap size={13} /> Quick Add</button>
-        <button onClick={() => openNew()} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'var(--btn-bg)', color: 'var(--btn-text)', borderRadius: 8, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer', transition: 'background 0.15s', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--btn-hover)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--btn-bg)')}
-        ><Plus size={13} /> New Trade</button>
-        {!isMobile && [{
-          label: 'Result',  value: filterResult,  opts: ['All', 'Win', 'Loss', 'BE', "Didn't take"],                              set: setFilterResult,
-        }, {
-          label: 'Session', value: filterSession, opts: ['All', 'Asia Session', 'London Session', 'Pre-market', 'New York AM Session', 'Pre-market Asia Session'], set: setFilterSession,
-        }, {
-          label: 'P&L',    value: filterPnl,     opts: ['All', 'Profitable', 'Unprofitable'],                                    set: setFilterPnl,
-        }].map(f => (
-          <div key={f.label} style={{ position: 'relative' }}>
-            <select value={f.value} onChange={e => f.set(e.target.value)} style={selectStyle(f.value !== 'All')}>
-              {f.opts.map(o => <option key={o} value={o}>{f.label}: {o}</option>)}
-            </select>
-            <ChevronDown size={10} style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-          </div>
-        ))}
-        {filtersActive && (
-          <button onClick={() => { setSearch(''); setFilterResult('All'); setFilterSession('All'); setFilterPnl('All') }}
-            style={{ padding: '6px 12px', background: 'transparent', border: '1px solid var(--border-mid)', borderRadius: 8, color: 'var(--text-dim)', fontSize: 14, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-sub)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-dim)'; e.currentTarget.style.borderColor = 'var(--border-mid)' }}
-          >Clear</button>
-        )}
+        <div style={{ flex: 1 }} />
+        {selected.size > 0 && <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>{selected.size} selected</span>}
+        <button title="Table settings" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border-mid)', background: 'transparent', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Settings2 size={16} /></button>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => selected.size > 0 && setBulkOpen(o => !o)} disabled={selected.size === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, border: '1px solid var(--border-mid)', background: selected.size > 0 ? 'var(--bg-card)' : 'var(--bg-hover)', color: selected.size > 0 ? 'var(--text-sub)' : 'var(--text-dim)', fontSize: 14, fontWeight: 600, cursor: selected.size > 0 ? 'pointer' : 'not-allowed', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            Bulk actions <ChevronDown size={13} />
+          </button>
+          {bulkOpen && selected.size > 0 && (
+            <>
+              <div onClick={() => setBulkOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 39 }} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 5px)', right: 0, zIndex: 40, background: 'var(--bg-panel)', border: '1px solid var(--border-strong)', borderRadius: 10, boxShadow: 'var(--shadow-card)', padding: 5, minWidth: 170 }}>
+                <button onClick={bulkDelete} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '9px 10px', borderRadius: 7, border: 'none', background: 'transparent', color: '#ef4444', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.1)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                  <Trash2 size={14} /> Delete {selected.size} trade{selected.size !== 1 ? 's' : ''}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Column headers */}
-      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COL, padding: isMobile ? '0 12px' : '0 36px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-        {(isMobile ? ['Date / Pair', 'Net P&L', 'Result', ''] : ['Date', 'Pair', 'Direction', 'Setup', 'Session', 'Net P&L', 'R', 'Result', 'Grade', '']).map(h => (
-          <div key={h} style={hStyle}>{h}</div>
+      <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: COL, padding: isMobile ? '0 12px' : '0 26px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} style={{ cursor: 'pointer', width: 15, height: 15 }} />
+        </div>
+        {(isMobile ? ['Date / Pair', 'Net P&L', 'Status'] : ['Open date', 'Symbol', 'Status', 'Close date', 'Entry price', 'Exit price', 'Net P&L', 'Net ROI', 'R', 'Duration', 'Commissions']).map(h => (
+          <div key={h} style={{ ...hStyle, textAlign: (['Net P&L', 'Net ROI', 'R', 'Commissions', 'Entry price', 'Exit price'].includes(h)) ? 'right' : 'left' }}>{h}</div>
         ))}
       </div>
 
@@ -2021,6 +2115,9 @@ export function Journal({ entries, onSave, onDelete, initialDate, tradingAccount
                   onToggle={() => openEdit(t)}
                   COL={COL}
                   isMobile={isMobile}
+                  unit={unit}
+                  selected={selected.has(key)}
+                  onSelect={() => toggleSelect(key)}
                 />
                 <div style={{ display: 'grid', gridTemplateRows: isExpanded ? '1fr' : '0fr', transition: 'grid-template-rows 0.28s cubic-bezier(0.4,0,0.2,1)' }}>
                   <div style={{ overflow: 'hidden' }}>
